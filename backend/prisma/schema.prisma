@@ -1,0 +1,123 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EmpStatus {
+  ATIVA
+  INATIVA
+}
+
+enum UsuRole {
+  ADMIN
+  FINANCEIRO
+  OPERACIONAL
+}
+
+model Empresa {
+  EmpId           Int       @id @default(autoincrement())
+  EmpNome         String
+  EmpCnpj         String    @unique
+  EmpDataCadastro DateTime  @default(now())
+  EmpStatus       EmpStatus @default(ATIVA)
+
+  usuarios Usuario[]
+  despesas Despesa[]
+
+  @@map("empresa")
+}
+
+model Usuario {
+  UsuId        Int      @id @default(autoincrement())
+  UsuNome      String
+  UsuLogin     String
+  UsuSenhaHash String
+  UsuRole      UsuRole  @default(OPERACIONAL)
+  EmpId        Int
+
+  empresa Empresa @relation(fields: [EmpId], references: [EmpId], onDelete: Restrict)
+
+  @@unique([EmpId, UsuLogin])
+  @@map("usuario")
+}
+
+model Cliente {
+  CliId           Int      @id @default(autoincrement())
+  CliNome         String
+  CliCpfCnpj      String   @unique
+  CliDataCadastro DateTime @default(now())
+
+  processos Processo[]
+
+  @@map("cliente")
+}
+
+model Despesa {
+  DesId           Int      @id @default(autoincrement())
+  DesNome         String
+  DesValor        Decimal  @db.Decimal(12, 2)
+  DesDataCadastro DateTime @default(now())
+  EmpId           Int
+
+  empresa Empresa @relation(fields: [EmpId], references: [EmpId], onDelete: Restrict)
+
+  @@map("despesa")
+}
+
+model StatusProcesso {
+  StaId        Int    @id @default(autoincrement())
+  StaDescricao String @unique
+
+  processos Processo[]
+
+  @@map("status_processo")
+}
+
+model TipoProcesso {
+  TipId   Int    @id @default(autoincrement())
+  TipNome String @unique
+
+  processos Processo[]
+  subtipos  SubtipoProcesso[]
+
+  @@map("tipo_processo")
+}
+
+model SubtipoProcesso {
+  SubId   Int    @id @default(autoincrement())
+  SubNome String
+  TipId   Int
+
+  tipo TipoProcesso @relation(fields: [TipId], references: [TipId], onDelete: Restrict)
+
+  @@unique([TipId, SubNome])
+  @@map("subtipo_processo")
+}
+
+model Processo {
+  ProId              Int      @id @default(autoincrement())
+  ProNome            String
+  ProCodigo          String   @unique
+  CliId              Int
+  ProDataCadastro    DateTime @default(now())
+  ProDataAtualizacao DateTime @updatedAt
+  StaId              Int
+  ProValorFixo       Decimal? @db.Decimal(12, 2)
+  ProValorEsperado   Decimal? @db.Decimal(12, 2)
+  ProValorTotal  Decimal  @default(0) @db.Decimal(12, 2)
+  TipId              Int
+
+  cliente Cliente        @relation(fields: [CliId], references: [CliId], onDelete: Restrict)
+  status  StatusProcesso @relation(fields: [StaId], references: [StaId], onDelete: Restrict)
+  tipo    TipoProcesso   @relation(fields: [TipId], references: [TipId], onDelete: Restrict)
+
+  @@map("processo")
+}
