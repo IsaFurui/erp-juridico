@@ -6,16 +6,16 @@ import { JwtPayload } from '../interfaces/jwt-payload.interface';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private readonly config: ConfigService) {
-    super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      ignoreExpiration: false,
-      secretOrKey: config.getOrThrow<string>('JWT_SECRET'),
-    });
-  }
+    constructor(private readonly config: ConfigService) {
+        super({
+            jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+            ignoreExpiration: false,
+            secretOrKey: config.getOrThrow<string>('JWT_SECRET'),
+        });
+    }
 
-  validate(payload: JwtPayload): JwtPayload {
-    if (!payload.sub) throw new UnauthorizedException();
-    return payload;
-  }
+    validate(payload: JwtPayload): JwtPayload {
+        if (!payload.sub) throw new UnauthorizedException();
+        return payload;
+    }
 }
