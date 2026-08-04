@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { UsuariosService } from '../usuarios/usuarios.service';
+import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
@@ -16,27 +16,30 @@ const SALT_ROUNDS = 12;
 @Injectable()
 export class AuthService {
     constructor(
-        private readonly usersService: UsuariosService,
+        private readonly usersService: UsersService,
         private readonly jwtService: JwtService,
     ) {}
 
     async login(dto: LoginDto): Promise<{ access_token: string }> {
-        const user = await this.usersService.findByLogin(dto.empId, dto.login);
+        const user = await this.usersService.findByLogin(
+            dto.companyId,
+            dto.login,
+        );
 
         if (!user) throw new UnauthorizedException('Credenciais inválidas');
 
         const passwordMatch = await bcrypt.compare(
-            dto.senha,
-            user.UsuSenhaHash,
+            dto.password,
+            user.passwordHash,
         );
         if (!passwordMatch)
             throw new UnauthorizedException('Credenciais inválidas');
 
         const payload: JwtPayload = {
-            sub: user.UsuId,
-            login: user.UsuLogin,
-            role: user.UsuRole as UserRole,
-            empId: user.EmpId,
+            sub: user.id,
+            login: user.login,
+            role: user.role as UserRole,
+            companyId: user.companyId,
         };
 
         return { access_token: this.jwtService.sign(payload) };
@@ -44,13 +47,13 @@ export class AuthService {
 
     async register(dto: CreateUserDto) {
         const existing = await this.usersService.findByLogin(
-            dto.empId,
+            dto.companyId,
             dto.login,
         );
         if (existing)
             throw new ConflictException('Login já em uso nesta empresa');
 
-        const hash = await bcrypt.hash(dto.senha, SALT_ROUNDS);
-        return this.usersService.create({ ...dto, senhaHash: hash });
+        const hash = await bcrypt.hash(dto.password, SALT_ROUNDS);
+        return this.usersService.create({ ...dto, passwordHash: hash });
     }
 }

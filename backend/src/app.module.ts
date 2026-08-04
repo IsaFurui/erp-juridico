@@ -3,17 +3,23 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
-import { EmpresaModule } from './empresa/empresa.module';
+import { CompanyModule } from './company/company.module';
 import { AuthModule } from './auth/auth.module';
-import { UsuariosModule } from './usuarios/usuarios.module';
+import { UsersModule } from './users/users.module';
+import { ClientsModule } from './clients/clients.module';
+import { ProcessStatusModule } from './process-status/process-status.module';
+import { ProcessTypeModule } from './process-type/process-type.module';
 
 @Module({
     imports: [
         ConfigModule.forRoot({ isGlobal: true }),
         PrismaModule,
-        EmpresaModule,
+        CompanyModule,
         AuthModule,
-        UsuariosModule,
+        UsersModule,
+        ClientsModule,
+        ProcessStatusModule,
+        ProcessTypeModule,
     ],
     controllers: [AppController],
     providers: [AppService],

@@ -5,7 +5,7 @@ export class LoginDto {
     @ApiProperty({ example: 1, description: 'ID da empresa' })
     @IsInt()
     @IsPositive()
-    empId: number;
+    companyId: number;
 
     @ApiProperty({ example: 'joao.silva' })
     @IsString()
@@ -14,5 +14,5 @@ export class LoginDto {
     @ApiProperty({ example: 'senha123', minLength: 6 })
     @IsString()
     @MinLength(6)
-    senha: string;
+    password: string;
 }
