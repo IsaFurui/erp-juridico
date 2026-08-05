@@ -34,7 +34,9 @@ export class ProcessStatusController {
     constructor(private readonly processStatusService: ProcessStatusService) {}
 
     @Post()
-    @ApiOperation({ summary: 'Cadastrar novo status de processo (apenas ADMIN)' })
+    @ApiOperation({
+        summary: 'Cadastrar novo status de processo (apenas ADMIN)',
+    })
     @ApiResponse({ status: 201, description: 'Status cadastrado com sucesso' })
     @ApiResponse({ status: 409, description: 'Status já cadastrado' })
     @ApiResponse({ status: 400, description: 'Dados inválidos' })
@@ -43,14 +45,18 @@ export class ProcessStatusController {
     }
 
     @Get()
-    @ApiOperation({ summary: 'Listar todos os status de processo (apenas ADMIN)' })
+    @ApiOperation({
+        summary: 'Listar todos os status de processo (apenas ADMIN)',
+    })
     @ApiResponse({ status: 200, description: 'Status listados com sucesso' })
     listAll() {
         return this.processStatusService.listAll();
     }
 
     @Get(':id')
-    @ApiOperation({ summary: 'Buscar status de processo por ID (apenas ADMIN)' })
+    @ApiOperation({
+        summary: 'Buscar status de processo por ID (apenas ADMIN)',
+    })
     @ApiResponse({ status: 200, description: 'Status encontrado' })
     @ApiResponse({ status: 404, description: 'Status não encontrado' })
     findById(@Param('id', ParseIntPipe) id: number) {

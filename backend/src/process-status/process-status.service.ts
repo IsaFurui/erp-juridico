@@ -15,6 +15,7 @@ export class ProcessStatusService {
         const existing = await this.prisma.processStatus.findUnique({
             where: { description: dto.description },
         });
+
         if (existing) throw new ConflictException('Status já cadastrado');
 
         return this.prisma.processStatus.create({
@@ -27,7 +28,9 @@ export class ProcessStatusService {
     }
 
     async findById(id: number) {
-        const status = await this.prisma.processStatus.findUnique({ where: { id } });
+        const status = await this.prisma.processStatus.findUnique({
+            where: { id },
+        });
         if (!status) throw new NotFoundException('Status não encontrado');
         return status;
     }
@@ -38,7 +41,9 @@ export class ProcessStatusService {
         return this.prisma.processStatus.update({
             where: { id },
             data: {
-                ...(dto.description !== undefined && { description: dto.description }),
+                ...(dto.description !== undefined && {
+                    description: dto.description,
+                }),
             },
         });
     }
