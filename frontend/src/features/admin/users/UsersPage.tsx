@@ -95,11 +95,11 @@ function UsersPage() {
           </p>
         )}
 
-        {!loading && !error && users.length === 0 && (
+        {!loading && !error && (users ?? []).length === 0 && (
           <p className="ui-empty">Nenhum usuário cadastrado ainda.</p>
         )}
 
-        {!loading && !error && users.length > 0 && (
+        {!loading && !error && (users ?? []).length > 0 && (
           <table className="ui-table">
             <thead>
               <tr>

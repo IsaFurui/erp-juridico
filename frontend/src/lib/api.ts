@@ -87,12 +87,28 @@ async function request<T>(
     onUnauthorized?.()
   }
 
-  if (!res.ok) {
-    throw new ApiError(res.status, await parseErrorMessage(res))
+  const text = await res.text()
+  let data: unknown = null
+  if (text.trim()) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      data = null
+    }
   }
 
-  if (res.status === 204) return undefined as T
-  return res.json() as Promise<T>
+  if (!res.ok) {
+    throw new ApiError(res.status, buildErrorMessage(res.status, data))
+  }
+
+  if (res.status === 204 || data === null) {
+    if (res.status === 204) return undefined as T
+    throw new ApiError(
+      res.status,
+      'O servidor retornou uma resposta vazia. Tente novamente.',
+    )
+  }
+  return data as T
 }
 
 const STATUS_HINTS: Record<number, string> = {
@@ -105,20 +121,16 @@ const STATUS_HINTS: Record<number, string> = {
   500: 'Erro interno no servidor',
 }
 
-async function parseErrorMessage(res: Response): Promise<string> {
+function buildErrorMessage(status: number, data: unknown): string {
   let raw = ''
 
-  try {
-    const body = (await res.json()) as {
-      message?: string | string[]
-    }
-    if (typeof body.message === 'string') raw = body.message
-    else if (Array.isArray(body.message)) raw = body.message.join('\n')
-  } catch {
-    // sem corpo JSON legível
+  if (data && typeof data === 'object') {
+    const message = (data as { message?: unknown }).message
+    if (typeof message === 'string') raw = message
+    else if (Array.isArray(message)) raw = message.join('\n')
   }
 
-  const hint = STATUS_HINTS[res.status] ?? `Falha na requisição (${res.status})`
+  const hint = STATUS_HINTS[status] ?? `Falha na requisição (${status})`
 
   if (raw.trim()) return formatErrorList(raw, hint)
   return hint

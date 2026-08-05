@@ -96,11 +96,11 @@ function CompanyPage() {
           </p>
         )}
 
-        {!loading && !error && companies.length === 0 && (
+        {!loading && !error && (companies ?? []).length === 0 && (
           <p className="ui-empty">Nenhuma empresa cadastrada ainda.</p>
         )}
 
-        {!loading && !error && companies.length > 0 && (
+        {!loading && !error && (companies ?? []).length > 0 && (
           <table className="ui-table">
             <thead>
               <tr>
