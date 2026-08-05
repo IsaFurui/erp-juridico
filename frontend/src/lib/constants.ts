@@ -6,6 +6,7 @@ export const APP_ROUTES = {
   login: '/login',
   dashboard: '/',
   users: '/admin/users',
+  companies: '/admin/empresas',
   clients: '/clientes',
   processes: '/processos',
   finance: '/financeiro',

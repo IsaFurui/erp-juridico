@@ -193,6 +193,7 @@
   padding: 10px 12px;
   border-radius: var(--radius-md);
   font-size: 13px;
+  white-space: pre-line;
 }
 
 .ui-alert--error {

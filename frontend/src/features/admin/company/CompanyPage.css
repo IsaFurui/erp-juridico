@@ -1,0 +1,17 @@
+.companies-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+
+.companies-actions {
+  text-align: right;
+  white-space: nowrap;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

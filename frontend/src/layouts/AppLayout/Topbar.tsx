@@ -1,14 +1,16 @@
 import { useLocation } from 'react-router-dom'
 import Icon from '../../components/ui/Icon'
+import { APP_ROUTES } from '../../lib/constants'
 import '../../components/ui/ui.css'
 
 const TITLES: Record<string, string> = {
-  '/': 'Dashboard',
-  '/clientes': 'Clientes',
-  '/processos': 'Processos',
-  '/financeiro': 'Financeiro',
-  '/admin/users': 'Usuários',
-  '/admin/configuracoes': 'Configurações',
+  [APP_ROUTES.dashboard]: 'Dashboard',
+  [APP_ROUTES.clients]: 'Clientes',
+  [APP_ROUTES.processes]: 'Processos',
+  [APP_ROUTES.finance]: 'Financeiro',
+  [APP_ROUTES.users]: 'Usuários',
+  [APP_ROUTES.companies]: 'Empresas',
+  [APP_ROUTES.settings]: 'Configurações',
 }
 
 function Topbar() {

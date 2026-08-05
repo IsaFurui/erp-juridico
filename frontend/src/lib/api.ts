@@ -33,6 +33,23 @@ export interface UpdateUserPayload {
   role?: UserRole
 }
 
+export interface Company {
+  id: number
+  name: string
+  cnpj: string
+  active: boolean
+  createdAt: string
+}
+
+export interface CreateCompanyPayload {
+  name: string
+  cnpj: string
+}
+
+export interface UpdateCompanyPayload {
+  name: string
+}
+
 export class ApiError extends Error {
   status: number
 
@@ -71,19 +88,63 @@ async function request<T>(
   }
 
   if (!res.ok) {
-    let message = `Erro ${res.status}`
-    try {
-      const body = (await res.json()) as { message?: string | string[] }
-      if (typeof body.message === 'string') message = body.message
-      else if (Array.isArray(body.message)) message = body.message.join(', ')
-    } catch {
-      // ignore parse errors
-    }
-    throw new ApiError(res.status, message)
+    throw new ApiError(res.status, await parseErrorMessage(res))
   }
 
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
+}
+
+const STATUS_HINTS: Record<number, string> = {
+  400: 'Dados inválidos',
+  401: 'Sessão inválida ou credenciais incorretas',
+  403: 'Você não tem permissão para esta ação',
+  404: 'Registro não encontrado',
+  409: 'Conflito com dados existentes',
+  422: 'Não foi possível processar os dados',
+  500: 'Erro interno no servidor',
+}
+
+async function parseErrorMessage(res: Response): Promise<string> {
+  let raw = ''
+
+  try {
+    const body = (await res.json()) as {
+      message?: string | string[]
+    }
+    if (typeof body.message === 'string') raw = body.message
+    else if (Array.isArray(body.message)) raw = body.message.join('\n')
+  } catch {
+    // sem corpo JSON legível
+  }
+
+  const hint = STATUS_HINTS[res.status] ?? `Falha na requisição (${res.status})`
+
+  if (raw.trim()) return formatErrorList(raw, hint)
+  return hint
+}
+
+function formatErrorList(raw: string, hint: string): string {
+  const items = Array.from(
+    new Set(
+      raw
+        .split('\n')
+        .map((e) => e.trim())
+        .filter(Boolean),
+    ),
+  )
+
+  if (items.length === 0) return hint
+
+  const details = items.slice(0, 4).map((e) => `• ${e}`).join('\n')
+
+  if (items.length === 1) {
+    const single = items[0]
+    const normalized = single.charAt(0).toLowerCase() + single.slice(1)
+    return `${hint}: ${normalized}`
+  }
+
+  return `${hint}:\n${details}`
 }
 
 export const authApi = {
@@ -107,4 +168,20 @@ export const usersApi = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+}
+
+export const companyApi = {
+  listAll: (): Promise<Company[]> => request('/company'),
+  create: (payload: CreateCompanyPayload): Promise<Company> =>
+    request('/company', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  update: (id: number, payload: UpdateCompanyPayload): Promise<Company> =>
+    request(`/company/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deactivate: (id: number): Promise<void> =>
+    request(`/company/${id}/deactivate`, { method: 'PATCH' }),
 }

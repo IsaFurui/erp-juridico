@@ -5,6 +5,7 @@ import AppLayout from '../layouts/AppLayout/AppLayout'
 import Login from '../features/auth/Login/Login'
 import Dashboard from '../features/dashboard/Dashboard'
 import UsersPage from '../features/admin/users/UsersPage'
+import CompanyPage from '../features/admin/company/CompanyPage'
 import { APP_ROUTES } from '../lib/constants'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -41,6 +42,14 @@ function AppRouter() {
           element={
             <AdminRoute>
               <UsersPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path={APP_ROUTES.companies}
+          element={
+            <AdminRoute>
+              <CompanyPage />
             </AdminRoute>
           }
         />

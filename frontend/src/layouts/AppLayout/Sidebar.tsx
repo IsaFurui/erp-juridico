@@ -2,6 +2,9 @@ import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLabel } from '../../lib/constants'
 import Icon, { type IconName } from '../../components/ui/Icon'
+import {
+  APP_ROUTES,
+} from '../../lib/constants'
 import '../../components/ui/ui.css'
 
 interface NavItem {
@@ -11,15 +14,16 @@ interface NavItem {
 }
 
 const MAIN_NAV: NavItem[] = [
-  { to: '/', label: 'Dashboard', icon: 'dashboard' },
-  { to: '/clientes', label: 'Clientes', icon: 'clients' },
-  { to: '/processos', label: 'Processos', icon: 'processes' },
-  { to: '/financeiro', label: 'Financeiro', icon: 'finance' },
+  { to: APP_ROUTES.dashboard, label: 'Dashboard', icon: 'dashboard' },
+  { to: APP_ROUTES.clients, label: 'Clientes', icon: 'clients' },
+  { to: APP_ROUTES.processes, label: 'Processos', icon: 'processes' },
+  { to: APP_ROUTES.finance, label: 'Financeiro', icon: 'finance' },
 ]
 
 const ADMIN_NAV: NavItem[] = [
-  { to: '/admin/users', label: 'Usuários', icon: 'users' },
-  { to: '/admin/configuracoes', label: 'Configurações', icon: 'settings' },
+  { to: APP_ROUTES.users, label: 'Usuários', icon: 'users' },
+  { to: APP_ROUTES.companies, label: 'Empresas', icon: 'shield' },
+  { to: APP_ROUTES.settings, label: 'Configurações', icon: 'settings' },
 ]
 
 function SectionLabel({ children }: { children: string }) {
@@ -35,7 +39,7 @@ function NavItemLink({ item }: { item: NavItem }) {
       className={({ isActive }) =>
         `sidebar-nav-item${isActive ? ' is-active' : ''}`
       }
-      end={item.to === '/'}
+      end={item.to === APP_ROUTES.dashboard}
     >
       <Icon name={item.icon} size={18} />
       <span>{item.label}</span>

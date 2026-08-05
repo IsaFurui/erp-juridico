@@ -1,0 +1,9 @@
+.company-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.company-form .ui-modal-footer {
+  margin-top: 4px;
+}
