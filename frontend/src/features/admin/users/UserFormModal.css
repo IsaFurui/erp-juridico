@@ -1,0 +1,9 @@
+.user-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.user-form .ui-modal-footer {
+  margin-top: 4px;
+}

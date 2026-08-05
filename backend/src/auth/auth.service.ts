@@ -40,6 +40,7 @@ export class AuthService {
             login: user.login,
             role: user.role as UserRole,
             companyId: user.companyId,
+            companyName: user.company.name,
         };
 
         return { access_token: this.jwtService.sign(payload) };

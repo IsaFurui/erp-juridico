@@ -1,0 +1,14 @@
+.users-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+
+.users-actions {
+  text-align: right;
+  white-space: nowrap;
+}

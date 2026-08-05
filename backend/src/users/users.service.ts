@@ -31,12 +31,10 @@ interface CreateUserInput {
 export class UsersService {
     constructor(private readonly prisma: PrismaService) {}
 
-    async findByLogin(companyId: number, login: string) {
-        const teste = await bcrypt.hash('senha123', SALT_ROUNDS);
-        console.log('Hash de teste:', teste);
-
+    findByLogin(companyId: number, login: string) {
         return this.prisma.user.findUnique({
             where: { companyId_login: { companyId, login } },
+            include: { company: { select: { name: true } } },
         });
     }
 
