@@ -78,6 +78,23 @@ export interface UpdateClientPayload {
   cpfCnpj?: string
 }
 
+/** Envelope das listagens paginadas — igual para todo módulo do backend. */
+export interface Paginated<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+  pages: number
+}
+
+export interface ListClientsParams {
+  page?: number
+  pageSize?: number
+  search?: string
+  /** Apenas ADMIN; o backend responde 403 para os demais. */
+  includeInactive?: boolean
+}
+
 export class ApiError extends Error {
   status: number
 
@@ -233,9 +250,19 @@ export const companyApi = {
     request(`/company/${id}/deactivate`, { method: 'PATCH' }),
 }
 
+function toQuery(params: Record<string, string | number | boolean | undefined>) {
+  const search = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === '') continue
+    search.set(key, String(value))
+  }
+  const qs = search.toString()
+  return qs ? `?${qs}` : ''
+}
+
 export const clientsApi = {
-  listAll: (includeInactive = false): Promise<Client[]> =>
-    request(`/clients${includeInactive ? '?includeInactive=true' : ''}`),
+  listAll: (params: ListClientsParams = {}): Promise<Paginated<Client>> =>
+    request(`/clients${toQuery({ ...params })}`),
   create: (payload: CreateClientPayload): Promise<Client> =>
     request('/clients', {
       method: 'POST',

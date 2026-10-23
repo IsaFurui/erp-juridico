@@ -16,11 +16,11 @@ import {
     ApiOperation,
     ApiResponse,
     ApiBearerAuth,
-    ApiQuery,
 } from '@nestjs/swagger';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { ListClientsQueryDto } from './dto/list-clients-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -50,22 +50,17 @@ export class ClientsController {
     }
 
     @Get()
-    @ApiOperation({ summary: 'Listar clientes' })
-    @ApiQuery({
-        name: 'includeInactive',
-        required: false,
-        type: Boolean,
-        description: 'Inclui clientes inativos (apenas ADMIN)',
-    })
+    @ApiOperation({ summary: 'Listar clientes da empresa (paginado)' })
     @ApiResponse({ status: 200, description: 'Clientes listados com sucesso' })
+    @ApiResponse({
+        status: 403,
+        description: 'includeInactive sem ser ADMIN',
+    })
     listAll(
         @CurrentTenant() user: TenantJwtPayload,
-        @Query('includeInactive') includeInactive?: string,
+        @Query() query: ListClientsQueryDto,
     ) {
-        return this.clientsService.listAll(
-            user.companyId,
-            includeInactive === 'true',
-        );
+        return this.clientsService.listAll(user, query);
     }
 
     @Get(':id')

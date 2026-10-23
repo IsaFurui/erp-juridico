@@ -27,13 +27,17 @@ import { UserRole } from '../auth/enums/user-role.enum';
 
 @ApiTags('process-status')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+// Escrita é ADMIN, leitura é qualquer sessão autenticada — mesmo critério de
+// process-type. Antes o guard estava na classe e um OPERACIONAL não conseguia
+// nem ler a lista de status, embora possa criar processo (que exige statusId).
+@UseGuards(JwtAuthGuard)
 @Controller('process-status')
 export class ProcessStatusController {
     constructor(private readonly processStatusService: ProcessStatusService) {}
 
     @Post()
+    @UseGuards(RolesGuard)
+    @Roles(UserRole.ADMIN)
     @ApiOperation({
         summary: 'Cadastrar novo status de processo (apenas ADMIN)',
     })
@@ -46,7 +50,7 @@ export class ProcessStatusController {
 
     @Get()
     @ApiOperation({
-        summary: 'Listar todos os status de processo (apenas ADMIN)',
+        summary: 'Listar todos os status de processo',
     })
     @ApiResponse({ status: 200, description: 'Status listados com sucesso' })
     listAll() {
@@ -55,7 +59,7 @@ export class ProcessStatusController {
 
     @Get(':id')
     @ApiOperation({
-        summary: 'Buscar status de processo por ID (apenas ADMIN)',
+        summary: 'Buscar status de processo por ID',
     })
     @ApiResponse({ status: 200, description: 'Status encontrado' })
     @ApiResponse({ status: 404, description: 'Status não encontrado' })
@@ -64,6 +68,8 @@ export class ProcessStatusController {
     }
 
     @Patch(':id')
+    @UseGuards(RolesGuard)
+    @Roles(UserRole.ADMIN)
     @ApiOperation({ summary: 'Atualizar status de processo (apenas ADMIN)' })
     @ApiResponse({ status: 200, description: 'Status atualizado com sucesso' })
     @ApiResponse({ status: 403, description: 'Acesso negado' })
@@ -76,6 +82,8 @@ export class ProcessStatusController {
     }
 
     @Delete(':id')
+    @UseGuards(RolesGuard)
+    @Roles(UserRole.ADMIN)
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Remover status de processo (apenas ADMIN)' })
     @ApiResponse({ status: 204, description: 'Status removido com sucesso' })

@@ -1,7 +1,23 @@
 .clients-toolbar {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
   margin-bottom: 12px;
+}
+
+/* A busca ocupa o espaço livre e empurra o resto para a direita. */
+.clients-search {
+  flex: 1 1 260px;
+  min-width: 0;
+  max-width: 360px;
+}
+
+.clients-count {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
 }
 
 .clients-toggle {
@@ -46,4 +62,20 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.clients-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border, rgba(15, 23, 42, 0.1));
+}
+
+.clients-page-info {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
 }

@@ -157,7 +157,8 @@ describe('Fronteira do tenant (e2e)', () => {
                 .set('Authorization', `Bearer ${tokenA}`)
                 .expect(200);
 
-            const visiveis = (res.body as { id: number }[]).map((c) => c.id);
+            const body = res.body as { items: { id: number }[] };
+            const visiveis = body.items.map((c) => c.id);
 
             expect(visiveis).toContain(ids.clientA);
             expect(visiveis).not.toContain(ids.clientB);
@@ -169,9 +170,8 @@ describe('Fronteira do tenant (e2e)', () => {
                 .set('Authorization', `Bearer ${tokenB}`)
                 .expect(200);
 
-            expect(
-                (res.body as { id: number }[]).map((c) => c.id),
-            ).not.toContain(ids.clientA);
+            const body = res.body as { items: { id: number }[] };
+            expect(body.items.map((c) => c.id)).not.toContain(ids.clientA);
         });
 
         it('cliente de outra empresa não é encontrado pelo id', () =>
@@ -195,6 +195,59 @@ describe('Fronteira do tenant (e2e)', () => {
 
         it('sem token não lista cliente nenhum', () =>
             request(server).get('/clients').expect(401));
+
+        it('devolve o envelope paginado', async () => {
+            const res = await request(server)
+                .get('/clients?page=1&pageSize=1')
+                .set('Authorization', `Bearer ${tokenA}`)
+                .expect(200);
+
+            const body = res.body as {
+                items: unknown[];
+                total: number;
+                page: number;
+                pageSize: number;
+                pages: number;
+            };
+            expect(body.page).toBe(1);
+            expect(body.pageSize).toBe(1);
+            expect(body.items.length).toBeLessThanOrEqual(1);
+            expect(body.total).toBeGreaterThanOrEqual(1);
+        });
+
+        it('a busca não escapa da empresa', async () => {
+            const res = await request(server)
+                .get('/clients?search=Cliente')
+                .set('Authorization', `Bearer ${tokenA}`)
+                .expect(200);
+
+            const body = res.body as { items: { id: number }[] };
+            expect(body.items.map((c) => c.id)).not.toContain(ids.clientB);
+        });
+
+        it('recusa pageSize acima do teto', () =>
+            request(server)
+                .get('/clients?pageSize=500')
+                .set('Authorization', `Bearer ${tokenA}`)
+                .expect(400));
+
+        it('OPERACIONAL não lista inativos', async () => {
+            const operacional = await prisma.user.create({
+                data: {
+                    name: 'Operacional A',
+                    login: `op.a.${suffix}`,
+                    passwordHash: await bcrypt.hash(PASSWORD, 4),
+                    role: UserRole.OPERACIONAL,
+                    companyId: ids.companyA,
+                },
+            });
+            const token = await login(ids.companyA, operacional.login);
+
+            await request(server)
+                .get('/clients?includeInactive=true')
+                .set('Authorization', `Bearer ${token}`)
+                .expect(403);
+        });
     });
 
     describe('usuários', () => {
