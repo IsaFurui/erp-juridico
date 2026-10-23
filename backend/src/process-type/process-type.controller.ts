@@ -58,6 +58,14 @@ export class ProcessTypeController {
         return this.processTypeService.findById(id);
     }
 
+    @Get(':id/subtypes')
+    @ApiOperation({ summary: 'Listar subtipos de um tipo de processo' })
+    @ApiResponse({ status: 200, description: 'Subtipos listados com sucesso' })
+    @ApiResponse({ status: 404, description: 'Tipo não encontrado' })
+    listSubtypes(@Param('id', ParseIntPipe) id: number) {
+        return this.processTypeService.listSubtypes(id);
+    }
+
     @Patch(':id')
     @UseGuards(RolesGuard)
     @Roles(UserRole.ADMIN)

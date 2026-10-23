@@ -70,4 +70,13 @@ export class ClientsService {
             data: { active: false },
         });
     }
+
+    async activate(id: number, companyId: number) {
+        await this.findById(id, companyId);
+        return this.prisma.client.update({
+            where: { id },
+            data: { active: true },
+            select: PUBLIC_SELECT,
+        });
+    }
 }
