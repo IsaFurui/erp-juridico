@@ -37,6 +37,16 @@ const PROCESS_STATUSES = [
     'Prescrito',
 ];
 
+// Status que representam o fim do processo. Só nesses o Total destrava para
+// edição manual (o advogado acerta o valor que realmente entrou).
+const FINAL_STATUSES = new Set([
+    'Encerrado com êxito',
+    'Encerrado sem êxito',
+    'Acordo celebrado',
+    'Arquivado',
+    'Prescrito',
+]);
+
 const PROCESS_TYPES = [
     'Cível',
     'Trabalhista',
@@ -52,10 +62,11 @@ const PROCESS_TYPES = [
 
 async function main() {
     for (const description of PROCESS_STATUSES) {
+        const isFinal = FINAL_STATUSES.has(description);
         await prisma.processStatus.upsert({
             where: { description },
-            update: {},
-            create: { description },
+            update: { isFinal },
+            create: { description, isFinal },
         });
     }
     console.log(`${PROCESS_STATUSES.length} status cadastrados.`);
