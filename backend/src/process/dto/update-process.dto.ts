@@ -34,12 +34,6 @@ export class UpdateProcessDto {
     @IsPositive()
     typeId?: number;
 
-    @ApiPropertyOptional({ example: 1, description: 'ID do status' })
-    @IsOptional()
-    @IsInt()
-    @IsPositive()
-    statusId?: number;
-
     @ApiPropertyOptional({
         example: 2,
         description:
@@ -62,10 +56,4 @@ export class UpdateProcessDto {
     @IsNumber({ maxDecimalPlaces: 2 })
     @Min(0)
     expectedAmount?: number;
-
-    @ApiPropertyOptional({ example: 25000 })
-    @IsOptional()
-    @IsNumber({ maxDecimalPlaces: 2 })
-    @Min(0)
-    totalAmount?: number;
 }

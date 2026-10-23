@@ -150,3 +150,55 @@ describe('ProcessService — criação grava histórico e aplica a regra do Tota
         });
     });
 });
+
+describe('ProcessService — edição recalcula o Total conforme o status', () => {
+    const findFirst = jest.fn();
+    const update = jest.fn();
+    const clientFindFirst = jest.fn();
+    const typeFindUnique = jest.fn();
+    const subtypeFindUnique = jest.fn();
+    const processFindUnique = jest.fn();
+
+    const prisma = {
+        process: { findFirst, update, findUnique: processFindUnique },
+        client: { findFirst: clientFindFirst },
+        processType: { findUnique: typeFindUnique },
+        processSubtype: { findUnique: subtypeFindUnique },
+    } as unknown as PrismaService;
+
+    const service = new ProcessService(prisma);
+
+    beforeEach(() => {
+        update.mockReset().mockResolvedValue({});
+        clientFindFirst.mockReset().mockResolvedValue({ id: 1 });
+        typeFindUnique.mockReset().mockResolvedValue({ id: 1 });
+        subtypeFindUnique.mockReset();
+        processFindUnique.mockReset().mockResolvedValue(null);
+    });
+
+    it('recalcula o Total ao editar Esperado num processo não encerrado', async () => {
+        findFirst.mockResolvedValue({
+            id: 1,
+            code: 'C-1',
+            type: { id: 1 },
+            fixedAmount: 3000,
+            expectedAmount: 25000,
+            status: { id: 1, isFinal: false },
+        });
+        await service.update(1, { expectedAmount: 30000 }, 7);
+        expect(update.mock.calls[0][0].data.totalAmount).toBe(33000);
+    });
+
+    it('não mexe no Total quando o processo já está encerrado', async () => {
+        findFirst.mockResolvedValue({
+            id: 1,
+            code: 'C-1',
+            type: { id: 1 },
+            fixedAmount: 4000,
+            expectedAmount: 18000,
+            status: { id: 9, isFinal: true },
+        });
+        await service.update(1, { fixedAmount: 1 }, 7);
+        expect(update.mock.calls[0][0].data.totalAmount).toBeUndefined();
+    });
+});

@@ -154,9 +154,6 @@ export class ProcessService {
         if (dto.typeId !== undefined) {
             await this.ensureType(dto.typeId);
         }
-        if (dto.statusId !== undefined) {
-            await this.ensureStatus(dto.statusId);
-        }
         if (dto.subtypeId != null) {
             const effectiveTypeId = dto.typeId ?? current.type.id;
             await this.ensureSubtype(dto.subtypeId, effectiveTypeId);
@@ -165,27 +162,33 @@ export class ProcessService {
             await this.ensureCodeAvailable(dto.code);
         }
 
+        const data: Prisma.ProcessUncheckedUpdateInput = {
+            ...(dto.name !== undefined && { name: dto.name }),
+            ...(dto.code !== undefined && { code: dto.code }),
+            ...(dto.clientId !== undefined && { clientId: dto.clientId }),
+            ...(dto.typeId !== undefined && { typeId: dto.typeId }),
+            ...(dto.subtypeId !== undefined && { subtypeId: dto.subtypeId }),
+            ...(dto.fixedAmount !== undefined && {
+                fixedAmount: dto.fixedAmount,
+            }),
+            ...(dto.expectedAmount !== undefined && {
+                expectedAmount: dto.expectedAmount,
+            }),
+        };
+
+        // O status só muda pela rota dedicada. Aqui, enquanto o processo não
+        // estiver encerrado, o Total acompanha Entrada + Esperado; num processo
+        // já encerrado o Total ajustado é preservado.
+        if (!current.status.isFinal) {
+            const newFixed = dto.fixedAmount ?? Number(current.fixedAmount ?? 0);
+            const newExpected =
+                dto.expectedAmount ?? Number(current.expectedAmount ?? 0);
+            data.totalAmount = this.computeTotal(newFixed, newExpected);
+        }
+
         return this.prisma.process.update({
             where: { id },
-            data: {
-                ...(dto.name !== undefined && { name: dto.name }),
-                ...(dto.code !== undefined && { code: dto.code }),
-                ...(dto.clientId !== undefined && { clientId: dto.clientId }),
-                ...(dto.typeId !== undefined && { typeId: dto.typeId }),
-                ...(dto.statusId !== undefined && { statusId: dto.statusId }),
-                ...(dto.subtypeId !== undefined && {
-                    subtypeId: dto.subtypeId,
-                }),
-                ...(dto.fixedAmount !== undefined && {
-                    fixedAmount: dto.fixedAmount,
-                }),
-                ...(dto.expectedAmount !== undefined && {
-                    expectedAmount: dto.expectedAmount,
-                }),
-                ...(dto.totalAmount !== undefined && {
-                    totalAmount: dto.totalAmount,
-                }),
-            },
+            data,
             select: PUBLIC_SELECT,
         });
     }
