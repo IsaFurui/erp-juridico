@@ -34,30 +34,59 @@ const PUBLIC_SELECT = {
 export class ProcessService {
     constructor(private readonly prisma: PrismaService) {}
 
-    async create(dto: CreateProcessDto, companyId: number) {
+    async create(dto: CreateProcessDto, companyId: number, userId: number) {
         await this.ensureClient(dto.clientId, companyId);
         await this.ensureType(dto.typeId);
-        await this.ensureStatus(dto.statusId);
+        const status = await this.ensureStatus(dto.statusId);
         if (dto.subtypeId != null) {
             await this.ensureSubtype(dto.subtypeId, dto.typeId);
         }
         await this.ensureCodeAvailable(dto.code);
 
-        return this.prisma.process.create({
-            data: {
-                name: dto.name,
-                code: dto.code,
-                companyId,
-                clientId: dto.clientId,
-                typeId: dto.typeId,
-                statusId: dto.statusId,
-                subtypeId: dto.subtypeId ?? null,
-                fixedAmount: dto.fixedAmount ?? null,
-                expectedAmount: dto.expectedAmount ?? null,
-                totalAmount: dto.totalAmount ?? 0,
-            },
-            select: PUBLIC_SELECT,
+        // O Total só é manual quando o processo nasce já encerrado; senão é
+        // derivado de Entrada + Esperado.
+        const totalAmount =
+            status.isFinal && dto.totalAmount != null
+                ? dto.totalAmount
+                : this.computeTotal(dto.fixedAmount, dto.expectedAmount);
+
+        // Transação: o processo e a primeira linha do histórico nascem juntos.
+        return this.prisma.$transaction(async (tx) => {
+            const process = await tx.process.create({
+                data: {
+                    name: dto.name,
+                    code: dto.code,
+                    companyId,
+                    clientId: dto.clientId,
+                    typeId: dto.typeId,
+                    statusId: dto.statusId,
+                    subtypeId: dto.subtypeId ?? null,
+                    fixedAmount: dto.fixedAmount ?? null,
+                    expectedAmount: dto.expectedAmount ?? null,
+                    totalAmount,
+                },
+                select: PUBLIC_SELECT,
+            });
+
+            await tx.processStatusHistory.create({
+                data: {
+                    processId: process.id,
+                    statusId: dto.statusId,
+                    userId,
+                    note: 'Processo criado',
+                },
+            });
+
+            return process;
         });
+    }
+
+    /** Total previsto quando o processo está em andamento. */
+    private computeTotal(
+        fixed?: number | null,
+        expected?: number | null,
+    ): number {
+        return Number(fixed ?? 0) + Number(expected ?? 0);
     }
 
     async listAll(
@@ -194,6 +223,7 @@ export class ProcessService {
             where: { id: statusId },
         });
         if (!status) throw new BadRequestException('Status inválido');
+        return status;
     }
 
     private async ensureSubtype(subtypeId: number, typeId: number) {

@@ -81,3 +81,72 @@ describe('ProcessService — listagem paginada e escopo de tenant', () => {
         });
     });
 });
+
+describe('ProcessService — criação grava histórico e aplica a regra do Total', () => {
+    const clientFindFirst = jest.fn();
+    const typeFindUnique = jest.fn();
+    const statusFindUnique = jest.fn();
+    const subtypeFindUnique = jest.fn();
+    const processFindUnique = jest.fn();
+    const txProcessCreate = jest.fn();
+    const txHistoryCreate = jest.fn();
+    const $transaction = jest.fn();
+
+    const prisma = {
+        client: { findFirst: clientFindFirst },
+        processType: { findUnique: typeFindUnique },
+        processStatus: { findUnique: statusFindUnique },
+        processSubtype: { findUnique: subtypeFindUnique },
+        process: { findUnique: processFindUnique },
+        $transaction,
+    } as unknown as PrismaService;
+
+    const service = new ProcessService(prisma);
+
+    const baseDto = {
+        name: 'Processo X',
+        code: 'C-1',
+        clientId: 1,
+        typeId: 1,
+        statusId: 1,
+        fixedAmount: 3000,
+        expectedAmount: 25000,
+    } as Parameters<typeof service.create>[0];
+
+    beforeEach(() => {
+        clientFindFirst.mockReset().mockResolvedValue({ id: 1 });
+        typeFindUnique.mockReset().mockResolvedValue({ id: 1 });
+        statusFindUnique.mockReset().mockResolvedValue({ id: 1, isFinal: false });
+        subtypeFindUnique.mockReset();
+        processFindUnique.mockReset().mockResolvedValue(null); // código livre
+        txProcessCreate.mockReset().mockResolvedValue({ id: 99 });
+        txHistoryCreate.mockReset().mockResolvedValue({});
+        $transaction.mockReset().mockImplementation((cb: (tx: unknown) => unknown) =>
+            cb({
+                process: { create: txProcessCreate },
+                processStatusHistory: { create: txHistoryCreate },
+            }),
+        );
+    });
+
+    it('deriva o Total quando o status não é de encerramento', async () => {
+        await service.create(baseDto, 7, 1);
+        expect(txProcessCreate.mock.calls[0][0].data.totalAmount).toBe(28000);
+    });
+
+    it('aceita o Total informado quando o status é de encerramento', async () => {
+        statusFindUnique.mockResolvedValue({ id: 1, isFinal: true });
+        await service.create({ ...baseDto, totalAmount: 22500 }, 7, 1);
+        expect(txProcessCreate.mock.calls[0][0].data.totalAmount).toBe(22500);
+    });
+
+    it('grava a primeira linha do histórico ao criar', async () => {
+        await service.create(baseDto, 7, 1);
+        expect(txHistoryCreate.mock.calls[0][0].data).toMatchObject({
+            processId: 99,
+            statusId: 1,
+            userId: 1,
+            note: 'Processo criado',
+        });
+    });
+});

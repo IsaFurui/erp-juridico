@@ -51,7 +51,7 @@ export class ProcessController {
         @Body() dto: CreateProcessDto,
         @CurrentTenant() user: TenantJwtPayload,
     ) {
-        return this.processService.create(dto, user.companyId);
+        return this.processService.create(dto, user.companyId, user.sub);
     }
 
     @Get()
