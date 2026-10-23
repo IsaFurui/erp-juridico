@@ -202,3 +202,63 @@ describe('ProcessService — edição recalcula o Total conforme o status', () =
         expect(update.mock.calls[0][0].data.totalAmount).toBeUndefined();
     });
 });
+
+describe('ProcessService — mudança de status grava histórico e Total de encerramento', () => {
+    const findFirst = jest.fn();
+    const statusFindUnique = jest.fn();
+    const txProcessUpdate = jest.fn();
+    const txHistoryCreate = jest.fn();
+    const $transaction = jest.fn();
+
+    const prisma = {
+        process: { findFirst, update: jest.fn() },
+        processStatus: { findUnique: statusFindUnique },
+        $transaction,
+    } as unknown as PrismaService;
+
+    const service = new ProcessService(prisma);
+
+    beforeEach(() => {
+        findFirst
+            .mockReset()
+            .mockResolvedValue({ id: 1, fixedAmount: 4000, expectedAmount: 18000 });
+        statusFindUnique.mockReset().mockResolvedValue({ id: 9, isFinal: true });
+        txProcessUpdate.mockReset().mockResolvedValue({});
+        txHistoryCreate.mockReset().mockResolvedValue({});
+        $transaction.mockReset().mockImplementation((cb: (tx: unknown) => unknown) =>
+            cb({
+                process: { update: txProcessUpdate },
+                processStatusHistory: { create: txHistoryCreate },
+            }),
+        );
+    });
+
+    it('ao encerrar, aceita o Total final e registra o histórico', async () => {
+        await service.changeStatus(1, { statusId: 9, totalAmount: 22500 }, 7, 1);
+        expect(txProcessUpdate.mock.calls[0][0].data).toMatchObject({
+            statusId: 9,
+            totalAmount: 22500,
+        });
+        expect(txHistoryCreate.mock.calls[0][0].data).toMatchObject({
+            processId: 1,
+            statusId: 9,
+            userId: 1,
+        });
+    });
+
+    it('ao reabrir (status não-final), volta o Total a ser derivado', async () => {
+        statusFindUnique.mockResolvedValue({ id: 1, isFinal: false });
+        await service.changeStatus(1, { statusId: 1 }, 7, 1);
+        expect(txProcessUpdate.mock.calls[0][0].data).toMatchObject({
+            statusId: 1,
+            totalAmount: 22000,
+        });
+    });
+
+    it('processo de outra empresa responde 404', async () => {
+        findFirst.mockResolvedValue(null);
+        await expect(
+            service.changeStatus(1, { statusId: 1 }, 7, 1),
+        ).rejects.toThrow('Processo não encontrado');
+    });
+});

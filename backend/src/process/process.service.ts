@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProcessDto } from './dto/create-process.dto';
 import { UpdateProcessDto } from './dto/update-process.dto';
+import { ChangeProcessStatusDto } from './dto/change-process-status.dto';
 import { ListProcessesQueryDto } from './dto/list-processes-query.dto';
 import type { Prisma } from '../../generated/prisma/client';
 import {
@@ -28,6 +29,22 @@ const PUBLIC_SELECT = {
     type: { select: { id: true, name: true } },
     subtype: { select: { id: true, name: true } },
     status: { select: { id: true, description: true, isFinal: true } },
+};
+
+// Detalhe inclui o histórico de status (do mais recente para o mais antigo),
+// com quem mudou e a observação.
+const DETAIL_SELECT = {
+    ...PUBLIC_SELECT,
+    statusHistory: {
+        select: {
+            id: true,
+            changedAt: true,
+            note: true,
+            status: { select: { id: true, description: true, isFinal: true } },
+            user: { select: { id: true, name: true } },
+        },
+        orderBy: { changedAt: 'desc' as const },
+    },
 };
 
 @Injectable()
@@ -139,7 +156,7 @@ export class ProcessService {
     async findById(id: number, companyId: number) {
         const process = await this.prisma.process.findFirst({
             where: { id, companyId },
-            select: PUBLIC_SELECT,
+            select: DETAIL_SELECT,
         });
         if (!process) throw new NotFoundException('Processo não encontrado');
         return process;
@@ -190,6 +207,52 @@ export class ProcessService {
             where: { id },
             data,
             select: PUBLIC_SELECT,
+        });
+    }
+
+    async changeStatus(
+        id: number,
+        dto: ChangeProcessStatusDto,
+        companyId: number,
+        userId: number,
+    ) {
+        const current = await this.findById(id, companyId);
+        const status = await this.ensureStatus(dto.statusId);
+
+        const derived = this.computeTotal(
+            Number(current.fixedAmount ?? 0),
+            Number(current.expectedAmount ?? 0),
+        );
+        // Encerrou: o advogado pode fixar o Total que realmente entrou. Em
+        // qualquer outro status o Total volta a ser o previsto.
+        const totalAmount =
+            status.isFinal && dto.totalAmount != null
+                ? dto.totalAmount
+                : derived;
+
+        const note =
+            dto.note ??
+            (status.isFinal && dto.totalAmount != null
+                ? `Total ajustado para ${this.formatBRL(totalAmount)}`
+                : null);
+
+        await this.prisma.$transaction(async (tx) => {
+            await tx.process.update({
+                where: { id },
+                data: { statusId: dto.statusId, totalAmount },
+            });
+            await tx.processStatusHistory.create({
+                data: { processId: id, statusId: dto.statusId, userId, note },
+            });
+        });
+
+        return this.findById(id, companyId);
+    }
+
+    private formatBRL(value: number): string {
+        return value.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
         });
     }
 

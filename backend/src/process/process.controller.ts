@@ -21,6 +21,7 @@ import {
 import { ProcessService } from './process.service';
 import { CreateProcessDto } from './dto/create-process.dto';
 import { UpdateProcessDto } from './dto/update-process.dto';
+import { ChangeProcessStatusDto } from './dto/change-process-status.dto';
 import { ListProcessesQueryDto } from './dto/list-processes-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -91,6 +92,26 @@ export class ProcessController {
         @CurrentTenant() user: TenantJwtPayload,
     ) {
         return this.processService.update(id, dto, user.companyId);
+    }
+
+    @Patch(':id/status')
+    @UseGuards(RolesGuard)
+    @Roles(UserRole.ADMIN, UserRole.OPERACIONAL)
+    @ApiOperation({ summary: 'Mudar o status do processo' })
+    @ApiResponse({ status: 200, description: 'Status alterado com sucesso' })
+    @ApiResponse({ status: 404, description: 'Processo não encontrado' })
+    @ApiResponse({ status: 400, description: 'Status inválido' })
+    changeStatus(
+        @Param('id', ParseIntPipe) id: number,
+        @Body() dto: ChangeProcessStatusDto,
+        @CurrentTenant() user: TenantJwtPayload,
+    ) {
+        return this.processService.changeStatus(
+            id,
+            dto,
+            user.companyId,
+            user.sub,
+        );
     }
 
     @Delete(':id')
