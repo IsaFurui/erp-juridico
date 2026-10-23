@@ -261,4 +261,15 @@ describe('ProcessService — mudança de status grava histórico e Total de ence
             service.changeStatus(1, { statusId: 1 }, 7, 1),
         ).rejects.toThrow('Processo não encontrado');
     });
+
+    it('não marca "ajustado" no histórico quando o Total final é igual ao derivado', async () => {
+        // derivado = 4000 + 18000 = 22000; encerra informando o mesmo valor.
+        await service.changeStatus(1, { statusId: 9, totalAmount: 22000 }, 7, 1);
+        expect(txHistoryCreate.mock.calls[0][0].data.note).toBeNull();
+    });
+
+    it('marca "ajustado" no histórico quando o Total final difere do derivado', async () => {
+        await service.changeStatus(1, { statusId: 9, totalAmount: 22500 }, 7, 1);
+        expect(txHistoryCreate.mock.calls[0][0].data.note).toMatch(/ajustado/i);
+    });
 });

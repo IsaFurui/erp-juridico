@@ -230,9 +230,17 @@ export class ProcessService {
                 ? dto.totalAmount
                 : derived;
 
+        // Só é "ajuste" quando o encerramento muda de fato o Total previsto —
+        // comparado em centavos para não tropeçar em ponto flutuante. Encerrar
+        // mantendo o valor derivado não deve poluir o histórico com "ajustado".
+        const isAdjusted =
+            status.isFinal &&
+            dto.totalAmount != null &&
+            Math.round(dto.totalAmount * 100) !== Math.round(derived * 100);
+
         const note =
             dto.note ??
-            (status.isFinal && dto.totalAmount != null
+            (isAdjusted
                 ? `Total ajustado para ${this.formatBRL(totalAmount)}`
                 : null);
 

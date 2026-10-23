@@ -120,8 +120,11 @@ function ProcessDetailPage() {
   }
 
   const derived = toNumber(process.fixedAmount) + toNumber(process.expectedAmount)
+  // Compara em centavos: evita falso "ajustado" por ponto flutuante
+  // (ex.: 0,10 + 0,20 !== 0,30 em JS).
   const adjusted =
-    process.status.isFinal && toNumber(process.totalAmount) !== derived
+    process.status.isFinal &&
+    Math.round(toNumber(process.totalAmount) * 100) !== Math.round(derived * 100)
 
   return (
     <div>
