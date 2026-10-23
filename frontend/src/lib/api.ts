@@ -95,6 +95,108 @@ export interface ListClientsParams {
   includeInactive?: boolean
 }
 
+/* ----------------------------- Processos ----------------------------- */
+
+/** Catálogo global de status. `isFinal` marca os status de encerramento. */
+export interface ProcessStatus {
+  id: number
+  description: string
+  isFinal: boolean
+}
+
+export interface ProcessType {
+  id: number
+  name: string
+}
+
+export interface ProcessSubtype {
+  id: number
+  name: string
+  processTypeId: number
+}
+
+/** Referência enxuta (cliente, tipo, subtipo) embutida no processo. */
+export interface ProcessRef {
+  id: number
+  name: string
+}
+
+export interface ProcessStatusRef {
+  id: number
+  description: string
+  isFinal: boolean
+}
+
+/**
+ * Item da listagem e corpo de create/update. Os valores são `Decimal` no
+ * banco e chegam como **string** no JSON; `fixedAmount`/`expectedAmount` podem
+ * ser nulos.
+ */
+export interface ProcessListItem {
+  id: number
+  name: string
+  code: string
+  fixedAmount: string | null
+  expectedAmount: string | null
+  totalAmount: string
+  client: ProcessRef
+  type: ProcessRef
+  subtype: ProcessRef | null
+  status: ProcessStatusRef
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProcessStatusHistoryItem {
+  id: number
+  changedAt: string
+  note: string | null
+  status: ProcessStatusRef
+  user: { id: number; name: string }
+}
+
+/** Detalhe = item + a linha do tempo de status. */
+export interface ProcessDetail extends ProcessListItem {
+  statusHistory: ProcessStatusHistoryItem[]
+}
+
+export interface ListProcessesParams {
+  page?: number
+  pageSize?: number
+  search?: string
+  statusId?: number
+  typeId?: number
+  clientId?: number
+}
+
+export interface CreateProcessPayload {
+  name: string
+  code: string
+  clientId: number
+  typeId: number
+  statusId: number
+  subtypeId?: number | null
+  fixedAmount?: number
+  expectedAmount?: number
+}
+
+export interface UpdateProcessPayload {
+  name?: string
+  code?: string
+  clientId?: number
+  typeId?: number
+  subtypeId?: number | null
+  fixedAmount?: number
+  expectedAmount?: number
+}
+
+export interface ChangeProcessStatusPayload {
+  statusId: number
+  /** Só é considerado quando o status alvo é de encerramento. */
+  totalAmount?: number
+  note?: string
+}
+
 export class ApiError extends Error {
   status: number
 
@@ -277,4 +379,43 @@ export const clientsApi = {
     request(`/clients/${id}/deactivate`, { method: 'PATCH' }),
   activate: (id: number): Promise<Client> =>
     request(`/clients/${id}/activate`, { method: 'PATCH' }),
+}
+
+export const processesApi = {
+  listAll: (
+    params: ListProcessesParams = {},
+  ): Promise<Paginated<ProcessListItem>> =>
+    request(`/processes${toQuery({ ...params })}`),
+  getById: (id: number): Promise<ProcessDetail> => request(`/processes/${id}`),
+  create: (payload: CreateProcessPayload): Promise<ProcessListItem> =>
+    request('/processes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  update: (
+    id: number,
+    payload: UpdateProcessPayload,
+  ): Promise<ProcessListItem> =>
+    request(`/processes/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  changeStatus: (
+    id: number,
+    payload: ChangeProcessStatusPayload,
+  ): Promise<ProcessDetail> =>
+    request(`/processes/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+}
+
+export const processStatusApi = {
+  listAll: (): Promise<ProcessStatus[]> => request('/process-status'),
+}
+
+export const processTypeApi = {
+  listAll: (): Promise<ProcessType[]> => request('/process-type'),
+  listSubtypes: (id: number): Promise<ProcessSubtype[]> =>
+    request(`/process-type/${id}/subtypes`),
 }
