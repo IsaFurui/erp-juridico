@@ -9,6 +9,7 @@ import UsersPage from '../features/admin/users/UsersPage'
 import CompanyPage from '../features/admin/company/CompanyPage'
 import ClientsPage from '../features/clients/ClientsPage'
 import ProcessesPage from '../features/processes/ProcessesPage'
+import ProcessDetailPage from '../features/processes/ProcessDetailPage'
 import { APP_ROUTES } from '../lib/constants'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -78,6 +79,14 @@ function AppRouter() {
           element={
             <TenantRoute>
               <ProcessesPage />
+            </TenantRoute>
+          }
+        />
+        <Route
+          path={`${APP_ROUTES.processes}/:id`}
+          element={
+            <TenantRoute>
+              <ProcessDetailPage />
             </TenantRoute>
           }
         />
