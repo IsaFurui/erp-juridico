@@ -34,6 +34,14 @@ export class ProcessTypeService {
         return type;
     }
 
+    async listSubtypes(typeId: number) {
+        await this.findById(typeId);
+        return this.prisma.processSubtype.findMany({
+            where: { processTypeId: typeId },
+            orderBy: { name: 'asc' },
+        });
+    }
+
     async update(id: number, dto: UpdateProcessTypeDto) {
         await this.findById(id);
 

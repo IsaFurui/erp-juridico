@@ -10,6 +10,7 @@ import { ClientsModule } from './clients/clients.module';
 import { ProcessStatusModule } from './process-status/process-status.module';
 import { ProcessTypeModule } from './process-type/process-type.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
+import { ProcessModule } from './process/process.module';
 
 @Module({
     imports: [
@@ -22,6 +23,7 @@ import { PlatformAdminModule } from './platform-admin/platform-admin.module';
         ProcessStatusModule,
         ProcessTypeModule,
         PlatformAdminModule,
+        ProcessModule,
     ],
     controllers: [AppController],
     providers: [AppService],

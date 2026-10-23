@@ -108,4 +108,18 @@ export class ClientsController {
     ) {
         return this.clientsService.deactivate(id, user.companyId);
     }
+
+    @Patch(':id/activate')
+    @UseGuards(RolesGuard)
+    @Roles(UserRole.ADMIN)
+    @ApiOperation({ summary: 'Reativar cliente (apenas ADMIN)' })
+    @ApiResponse({ status: 200, description: 'Cliente reativado com sucesso' })
+    @ApiResponse({ status: 403, description: 'Acesso negado' })
+    @ApiResponse({ status: 404, description: 'Cliente não encontrado' })
+    activate(
+        @Param('id', ParseIntPipe) id: number,
+        @CurrentTenant() user: TenantJwtPayload,
+    ) {
+        return this.clientsService.activate(id, user.companyId);
+    }
 }

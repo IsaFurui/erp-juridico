@@ -22,14 +22,22 @@ src/
 ├── prisma/            # Módulo singleton do PrismaClient
 ├── auth/              # Autenticação completa (JWT + RBAC)
 ├── users/             # Gestão de usuários
-└── empresa/           # Módulo de empresas (em construção)
+├── company/           # Gestão de empresas (CRUD + desativação)
+├── clients/           # Gestão de clientes (CRUD + desativação)
+├── process-status/    # CRUD de status de processo
+└── process-type/      # CRUD de tipos de processo
 ```
+
+> Ainda **não implementados** (models já existem no schema): `process/`
+> (entidade central `Process` + `ProcessSubtype`) e `expense/` (financeiro).
 
 ---
 
 ## Módulo `prisma/`
 
 `PrismaService` estende `PrismaClient` e implementa `OnModuleInit` para conectar automaticamente.
+Usa o **driver adapter** `@prisma/adapter-pg` (`PrismaPg`), com a `connectionString` lida via
+`ConfigService.getOrThrow('DATABASE_URL')`.
 `PrismaModule` exporta o serviço — todos os outros módulos que precisam do banco importam `PrismaModule`.
 
 > Nunca injete `PrismaService` diretamente em controllers.
@@ -81,15 +89,17 @@ PLATFORM_ADMIN_PASSWORD=<senha>  # sem ela o seed não cria o root
 
 ## Módulo `users/`
 
-`UsersService` é o único ponto de acesso ao model `usuario` no banco.
-Nunca retorna `UsuSenhaHash` nos selects públicos.
+`UsersService` é o único ponto de acesso ao model `User` no banco.
+Nunca retorna `passwordHash` nos selects públicos.
 
-| Método                         | Descrição                                        |
-|-------------------------------|--------------------------------------------------|
-| `findByLogin(empId, login)`   | Busca usuário para autenticação (retorna hash)   |
-| `findById(id)`                | Busca por ID                                     |
-| `create(input)`               | Cria usuário (recebe hash pré-gerado)            |
-| `findAllByEmpresa(empId)`     | Lista usuários da empresa (sem senha)            |
+| Método                              | Descrição                                        |
+|-------------------------------------|--------------------------------------------------|
+| `findByLogin(companyId, login)`     | Busca usuário para autenticação (retorna hash)   |
+| `findById(id)`                      | Busca por ID                                     |
+| `create(input)`                     | Cria usuário (recebe hash pré-gerado)            |
+| `findAllByCompany(companyId)`       | Lista usuários da empresa (sem senha)            |
+| `update(id, dto)`                   | Atualiza dados do usuário                         |
+| `changePassword(id, dto)`           | Troca a senha do usuário                          |
 
 ---
 
@@ -169,25 +179,34 @@ Rotas protegidas usam `@ApiBearerAuth()` — clicar em "Authorize" no Swagger UI
 
 ## Prisma
 
-### Modelo `usuario`
+> **Nomenclatura em inglês**: desde a migration `changing_table_names`, todos os models,
+> campos e tabelas usam nomes em inglês (sem `@@map`). As antigas tabelas em português
+> (`usuario`, `empresa`, `cliente`, etc.) foram removidas pela migration
+> `drop_legacy_pt_tables`.
+
+### Modelo `User`
 
 ```prisma
-model Usuario {
-  UsuId        Int      @id @default(autoincrement())
-  UsuNome      String
-  UsuLogin     String
-  UsuSenhaHash String
-  UsuRole      UsuRole  @default(OPERACIONAL)
-  EmpId        Int
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  login        String
+  passwordHash String
+  role         UserRole @default(OPERACIONAL)
+  companyId    Int
 
-  empresa Empresa @relation(fields: [EmpId], references: [EmpId])
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
-  @@unique([EmpId, UsuLogin])
-  @@map("usuario")
+  @@unique([companyId, login])
 }
 ```
 
-O login é único **por empresa** (`@@unique([EmpId, UsuLogin])`), permitindo o mesmo login em empresas diferentes.
+O login é único **por empresa** (`@@unique([companyId, login])`), permitindo o mesmo login em empresas diferentes.
+
+### Models do schema
+
+`Company`, `User`, `Client`, `Expense`, `ProcessStatus`, `ProcessType`, `ProcessSubtype`, `Process`.
+Enum `UserRole` (`ADMIN` / `FINANCEIRO` / `OPERACIONAL`).
 
 ### Comandos úteis
 
@@ -198,7 +217,7 @@ npx prisma studio                      # GUI do banco
 ```
 
 O client gerado fica em `generated/prisma/` (não editar).
-Importar tipos do client: `import { UsuRole } from '../../generated/prisma/enums'`
+Importar tipos do client: `import { UserRole } from '../../generated/prisma/enums'`
 
 ---
 

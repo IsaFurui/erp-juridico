@@ -60,6 +60,24 @@ export interface UpdateCompanyPayload {
   name: string
 }
 
+export interface Client {
+  id: number
+  name: string
+  cpfCnpj: string
+  active: boolean
+  createdAt: string
+}
+
+export interface CreateClientPayload {
+  name: string
+  cpfCnpj: string
+}
+
+export interface UpdateClientPayload {
+  name?: string
+  cpfCnpj?: string
+}
+
 export class ApiError extends Error {
   status: number
 
@@ -213,4 +231,23 @@ export const companyApi = {
     }),
   deactivate: (id: number): Promise<void> =>
     request(`/company/${id}/deactivate`, { method: 'PATCH' }),
+}
+
+export const clientsApi = {
+  listAll: (includeInactive = false): Promise<Client[]> =>
+    request(`/clients${includeInactive ? '?includeInactive=true' : ''}`),
+  create: (payload: CreateClientPayload): Promise<Client> =>
+    request('/clients', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  update: (id: number, payload: UpdateClientPayload): Promise<Client> =>
+    request(`/clients/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deactivate: (id: number): Promise<void> =>
+    request(`/clients/${id}/deactivate`, { method: 'PATCH' }),
+  activate: (id: number): Promise<Client> =>
+    request(`/clients/${id}/activate`, { method: 'PATCH' }),
 }
