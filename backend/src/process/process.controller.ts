@@ -6,6 +6,7 @@ import {
     Delete,
     Body,
     Param,
+    Query,
     ParseIntPipe,
     UseGuards,
     HttpCode,
@@ -20,6 +21,7 @@ import {
 import { ProcessService } from './process.service';
 import { CreateProcessDto } from './dto/create-process.dto';
 import { UpdateProcessDto } from './dto/update-process.dto';
+import { ListProcessesQueryDto } from './dto/list-processes-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -53,10 +55,13 @@ export class ProcessController {
     }
 
     @Get()
-    @ApiOperation({ summary: 'Listar processos da empresa' })
+    @ApiOperation({ summary: 'Listar processos da empresa (paginado)' })
     @ApiResponse({ status: 200, description: 'Processos listados com sucesso' })
-    listAll(@CurrentTenant() user: TenantJwtPayload) {
-        return this.processService.listAll(user.companyId);
+    listAll(
+        @CurrentTenant() user: TenantJwtPayload,
+        @Query() query: ListProcessesQueryDto,
+    ) {
+        return this.processService.listAll(user.companyId, query);
     }
 
     @Get(':id')

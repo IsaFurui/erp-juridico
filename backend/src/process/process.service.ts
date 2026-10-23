@@ -7,6 +7,13 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProcessDto } from './dto/create-process.dto';
 import { UpdateProcessDto } from './dto/update-process.dto';
+import { ListProcessesQueryDto } from './dto/list-processes-query.dto';
+import type { Prisma } from '../../generated/prisma/client';
+import {
+    buildPaginated,
+    resolvePagination,
+    type Paginated,
+} from '../common/paginated';
 
 const PUBLIC_SELECT = {
     id: true,
@@ -20,7 +27,7 @@ const PUBLIC_SELECT = {
     client: { select: { id: true, name: true } },
     type: { select: { id: true, name: true } },
     subtype: { select: { id: true, name: true } },
-    status: { select: { id: true, description: true } },
+    status: { select: { id: true, description: true, isFinal: true } },
 };
 
 @Injectable()
@@ -53,12 +60,51 @@ export class ProcessService {
         });
     }
 
-    listAll(companyId: number) {
-        return this.prisma.process.findMany({
-            where: { companyId },
-            select: PUBLIC_SELECT,
-            orderBy: { createdAt: 'desc' },
-        });
+    async listAll(
+        companyId: number,
+        query: ListProcessesQueryDto,
+    ): Promise<Paginated<unknown>> {
+        const where = this.buildListWhere(companyId, query);
+        const { page, pageSize, skip, take } = resolvePagination(
+            query.page,
+            query.pageSize,
+        );
+
+        const [items, total] = await this.prisma.$transaction([
+            this.prisma.process.findMany({
+                where,
+                select: PUBLIC_SELECT,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take,
+            }),
+            this.prisma.process.count({ where }),
+        ]);
+
+        return buildPaginated(items, total, page, pageSize);
+    }
+
+    private buildListWhere(
+        companyId: number,
+        query: ListProcessesQueryDto,
+    ): Prisma.ProcessWhereInput {
+        const where: Prisma.ProcessWhereInput = {
+            companyId,
+            ...(query.statusId !== undefined && { statusId: query.statusId }),
+            ...(query.typeId !== undefined && { typeId: query.typeId }),
+            ...(query.clientId !== undefined && { clientId: query.clientId }),
+        };
+
+        const term = query.search?.trim();
+        if (!term) return where;
+
+        // Busca pelo nome/título ou pelo número (code) do processo.
+        where.OR = [
+            { name: { contains: term, mode: 'insensitive' } },
+            { code: { contains: term, mode: 'insensitive' } },
+        ];
+
+        return where;
     }
 
     async findById(id: number, companyId: number) {
