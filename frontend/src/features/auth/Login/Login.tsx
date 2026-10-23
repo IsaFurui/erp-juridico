@@ -4,21 +4,39 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { APP_ROUTES } from '../../../lib/constants'
 import './Login.css'
 
+/**
+ * Dois modos, porque são duas identidades diferentes no backend: o usuário de
+ * escritório pertence a uma empresa, o administrador da plataforma não
+ * pertence a nenhuma — por isso o campo de empresa some no modo plataforma.
+ */
+type Mode = 'tenant' | 'platform'
+
 function Login() {
-  const { login } = useAuth()
+  const { login, loginPlatform } = useAuth()
   const navigate = useNavigate()
+  const [mode, setMode] = useState<Mode>('tenant')
   const [companyId, setCompanyId] = useState('')
   const [userLogin, setUserLogin] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  const isPlatformMode = mode === 'platform'
+
+  const switchMode = (next: Mode) => {
+    setMode(next)
+    setError(null)
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
 
     const parsedCompanyId = Number(companyId)
-    if (!Number.isInteger(parsedCompanyId) || parsedCompanyId <= 0) {
+    if (
+      !isPlatformMode &&
+      (!Number.isInteger(parsedCompanyId) || parsedCompanyId <= 0)
+    ) {
       setError('Informe um ID de empresa válido (número positivo).')
       return
     }
@@ -33,11 +51,15 @@ function Login() {
 
     setLoading(true)
     try {
-      await login({
-        companyId: parsedCompanyId,
-        login: userLogin.trim(),
-        password,
-      })
+      if (isPlatformMode) {
+        await loginPlatform({ login: userLogin.trim(), password })
+      } else {
+        await login({
+          companyId: parsedCompanyId,
+          login: userLogin.trim(),
+          password,
+        })
+      }
       navigate(APP_ROUTES.dashboard, { replace: true })
     } catch (err) {
       setError(
@@ -59,28 +81,55 @@ function Login() {
             </span>
           </div>
           <h1 className="login-title">ERP Jurídico</h1>
-          <p className="login-subtitle">Acesse sua conta para continuar</p>
+          <p className="login-subtitle">
+            {isPlatformMode
+              ? 'Administração da plataforma'
+              : 'Acesse sua conta para continuar'}
+          </p>
         </header>
 
+        <div className="login-modes" role="tablist" aria-label="Tipo de acesso">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!isPlatformMode}
+            className={`login-mode${!isPlatformMode ? ' is-active' : ''}`}
+            onClick={() => switchMode('tenant')}
+          >
+            Escritório
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={isPlatformMode}
+            className={`login-mode${isPlatformMode ? ' is-active' : ''}`}
+            onClick={() => switchMode('platform')}
+          >
+            Plataforma
+          </button>
+        </div>
+
         <form className="login-form" onSubmit={handleSubmit} noValidate>
-          <label className="field">
-            <span className="field-label">ID da Empresa</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1}
-              placeholder="Ex.: 1"
-              value={companyId}
-              onChange={(e) => setCompanyId(e.target.value)}
-            />
-          </label>
+          {!isPlatformMode && (
+            <label className="field">
+              <span className="field-label">ID da Empresa</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                placeholder="Ex.: 1"
+                value={companyId}
+                onChange={(e) => setCompanyId(e.target.value)}
+              />
+            </label>
+          )}
 
           <label className="field">
             <span className="field-label">Login</span>
             <input
               type="text"
               autoComplete="username"
-              placeholder="joao.silva"
+              placeholder={isPlatformMode ? 'root' : 'joao.silva'}
               value={userLogin}
               onChange={(e) => setUserLogin(e.target.value)}
             />
@@ -109,7 +158,9 @@ function Login() {
         </form>
       </div>
       <p className="login-footer">
-        Ambientes de teste: ID da empresa definido pelo suporte.
+        {isPlatformMode
+          ? 'Acesso do administrador da plataforma, criado pelo seed.'
+          : 'Ambientes de teste: ID da empresa definido pelo suporte.'}
       </p>
     </div>
   )

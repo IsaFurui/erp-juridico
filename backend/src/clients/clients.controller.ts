@@ -25,12 +25,14 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../auth/enums/user-role.enum';
-import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { TenantJwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { CurrentTenant } from '../auth/decorators/current-tenant.decorator';
+import { RequireTenantGuard } from '../auth/guards/require-tenant.guard';
 
+// Dado de escritório: a sessão da plataforma não tem empresa e leva 403 aqui.
 @ApiTags('clients')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RequireTenantGuard)
 @Controller('clients')
 export class ClientsController {
     constructor(private readonly clientsService: ClientsService) {}
@@ -40,7 +42,10 @@ export class ClientsController {
     @ApiResponse({ status: 201, description: 'Cliente cadastrado com sucesso' })
     @ApiResponse({ status: 409, description: 'CPF/CNPJ já cadastrado' })
     @ApiResponse({ status: 400, description: 'Dados inválidos' })
-    create(@Body() dto: CreateClientDto, @CurrentUser() user: JwtPayload) {
+    create(
+        @Body() dto: CreateClientDto,
+        @CurrentTenant() user: TenantJwtPayload,
+    ) {
         return this.clientsService.create(dto, user.companyId);
     }
 
@@ -53,8 +58,14 @@ export class ClientsController {
         description: 'Inclui clientes inativos (apenas ADMIN)',
     })
     @ApiResponse({ status: 200, description: 'Clientes listados com sucesso' })
-    listAll(@Query('includeInactive') includeInactive?: string) {
-        return this.clientsService.listAll(includeInactive === 'true');
+    listAll(
+        @CurrentTenant() user: TenantJwtPayload,
+        @Query('includeInactive') includeInactive?: string,
+    ) {
+        return this.clientsService.listAll(
+            user.companyId,
+            includeInactive === 'true',
+        );
     }
 
     @Get(':id')
@@ -63,7 +74,7 @@ export class ClientsController {
     @ApiResponse({ status: 404, description: 'Cliente não encontrado' })
     findById(
         @Param('id', ParseIntPipe) id: number,
-        @CurrentUser() user: JwtPayload,
+        @CurrentTenant() user: TenantJwtPayload,
     ) {
         return this.clientsService.findById(id, user.companyId);
     }
@@ -78,7 +89,7 @@ export class ClientsController {
     update(
         @Param('id', ParseIntPipe) id: number,
         @Body() dto: UpdateClientDto,
-        @CurrentUser() user: JwtPayload,
+        @CurrentTenant() user: TenantJwtPayload,
     ) {
         return this.clientsService.update(id, dto, user.companyId);
     }
@@ -93,7 +104,7 @@ export class ClientsController {
     @ApiResponse({ status: 404, description: 'Cliente não encontrado' })
     deactivate(
         @Param('id', ParseIntPipe) id: number,
-        @CurrentUser() user: JwtPayload,
+        @CurrentTenant() user: TenantJwtPayload,
     ) {
         return this.clientsService.deactivate(id, user.companyId);
     }

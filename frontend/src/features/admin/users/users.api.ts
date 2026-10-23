@@ -1,8 +1,8 @@
 import { usersApi } from '../../../lib/api'
 import type { User } from '../../../lib/api'
 
-export function listUsers(companyId: number): Promise<User[]> {
-  return usersApi.listByCompany(companyId)
+export function listUsers(companyId?: number): Promise<User[]> {
+  return usersApi.list(companyId)
 }
 
 export function createUser(

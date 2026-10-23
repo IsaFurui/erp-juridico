@@ -17,6 +17,17 @@ enum UserRole {
   OPERACIONAL
 }
 
+/// Dono da plataforma. Fica fora da árvore de Company de propósito: não é um
+/// escritório, administra todos. Nasce pelo seed, nunca pela API.
+model PlatformAdmin {
+  id           Int      @id @default(autoincrement())
+  name         String
+  login        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  active       Boolean  @default(true)
+}
+
 model Company {
   id        Int      @id @default(autoincrement())
   name      String

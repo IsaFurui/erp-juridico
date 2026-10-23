@@ -8,6 +8,12 @@ export interface LoginPayload {
   password: string
 }
 
+/** O root não pertence a empresa nenhuma, então não manda companyId. */
+export interface PlatformLoginPayload {
+  login: string
+  password: string
+}
+
 export interface LoginResponse {
   access_token: string
 }
@@ -25,7 +31,11 @@ export interface CreateUserPayload {
   login: string
   password: string
   role?: UserRole
-  companyId: number
+  /**
+   * Obrigatório na sessão da plataforma (que não tem empresa própria);
+   * para um ADMIN, informar outra empresa devolve 403.
+   */
+  companyId?: number
 }
 
 export interface UpdateUserPayload {
@@ -165,11 +175,18 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  loginPlatform: (payload: PlatformLoginPayload): Promise<LoginResponse> =>
+    request('/auth/platform/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 }
 
 export const usersApi = {
-  listByCompany: (companyId: number): Promise<User[]> =>
-    request(`/users/company/${companyId}`),
+  // A empresa vem do token no backend. O companyId só é aceito (e exigido)
+  // na sessão da plataforma, que não tem empresa própria.
+  list: (companyId?: number): Promise<User[]> =>
+    request(companyId ? `/users?companyId=${companyId}` : '/users'),
   create: (payload: CreateUserPayload): Promise<User> =>
     request('/auth/register', {
       method: 'POST',

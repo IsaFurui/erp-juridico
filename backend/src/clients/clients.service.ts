@@ -33,9 +33,14 @@ export class ClientsService {
         });
     }
 
-    listAll(includeInactive = false) {
+    // companyId é obrigatório de propósito: sem ele a listagem devolveria a
+    // carteira de clientes de todos os escritórios.
+    listAll(companyId: number, includeInactive = false) {
         return this.prisma.client.findMany({
-            where: includeInactive ? undefined : { active: true },
+            where: {
+                companyId,
+                ...(includeInactive ? {} : { active: true }),
+            },
             select: PUBLIC_SELECT,
         });
     }
@@ -54,7 +59,8 @@ export class ClientsService {
 
         const data: { name?: string; cpfCnpj?: string } = {};
         if (dto.name !== undefined) data.name = dto.name;
-        if (dto.cpfCnpj !== undefined) data.cpfCnpj = dto.cpfCnpj.replace(/\D/g, '');
+        if (dto.cpfCnpj !== undefined)
+            data.cpfCnpj = dto.cpfCnpj.replace(/\D/g, '');
 
         return this.prisma.client.update({
             where: { id },

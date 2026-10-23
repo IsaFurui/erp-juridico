@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from './prisma.service';
 
 describe('PrismaService', () => {
@@ -6,7 +7,18 @@ describe('PrismaService', () => {
 
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
-            providers: [PrismaService],
+            providers: [
+                PrismaService,
+                {
+                    // O service lê DATABASE_URL com getOrThrow no construtor;
+                    // o teste não abre conexão, só monta o provider.
+                    provide: ConfigService,
+                    useValue: {
+                        getOrThrow: () =>
+                            'postgresql://user:pass@localhost:5432/test',
+                    },
+                },
+            ],
         }).compile();
 
         service = module.get<PrismaService>(PrismaService);
