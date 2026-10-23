@@ -6,6 +6,7 @@ import Login from '../features/auth/Login/Login'
 import Dashboard from '../features/dashboard/Dashboard'
 import UsersPage from '../features/admin/users/UsersPage'
 import CompanyPage from '../features/admin/company/CompanyPage'
+import ClientsPage from '../features/clients/ClientsPage'
 import { APP_ROUTES } from '../lib/constants'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -33,7 +34,7 @@ function AppRouter() {
         }
       >
         <Route path={APP_ROUTES.dashboard} element={<Dashboard />} />
-        <Route path={APP_ROUTES.clients} element={<ComingSoon title="Clientes" />} />
+        <Route path={APP_ROUTES.clients} element={<ClientsPage />} />
         <Route path={APP_ROUTES.processes} element={<ComingSoon title="Processos" />} />
         <Route path={APP_ROUTES.finance} element={<ComingSoon title="Financeiro" />} />
 

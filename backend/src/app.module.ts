@@ -9,6 +9,7 @@ import { UsersModule } from './users/users.module';
 import { ClientsModule } from './clients/clients.module';
 import { ProcessStatusModule } from './process-status/process-status.module';
 import { ProcessTypeModule } from './process-type/process-type.module';
+import { ProcessModule } from './process/process.module';
 
 @Module({
     imports: [
@@ -20,6 +21,7 @@ import { ProcessTypeModule } from './process-type/process-type.module';
         ClientsModule,
         ProcessStatusModule,
         ProcessTypeModule,
+        ProcessModule,
     ],
     controllers: [AppController],
     providers: [AppService],
