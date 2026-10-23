@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import Button from '../../../components/ui/Button'
 import Badge from '../../../components/ui/Badge'
 import Icon from '../../../components/ui/Icon'
 import { formatCnpj } from '../../../lib/cnpj'
+import { APP_ROUTES } from '../../../lib/constants'
 import type { Company } from '../../../lib/api'
 import { listCompanies, deactivateCompany } from './company.api'
 import CompanyFormModal from './CompanyFormModal'
@@ -104,6 +106,9 @@ function CompanyPage() {
           <table className="ui-table">
             <thead>
               <tr>
+                {/* O login do escritório pede o ID da empresa, então ele
+                    precisa estar visível em algum lugar. */}
+                <th>ID</th>
                 <th>Nome</th>
                 <th>CNPJ</th>
                 <th>Status</th>
@@ -113,6 +118,7 @@ function CompanyPage() {
             <tbody>
               {companies.map((c) => (
                 <tr key={c.id}>
+                  <td className="companies-id">{c.id}</td>
                   <td>{c.name}</td>
                   <td>{formatCnpj(c.cnpj)}</td>
                   <td>
@@ -121,6 +127,15 @@ function CompanyPage() {
                     </Badge>
                   </td>
                   <td className="companies-actions">
+                    {/* Entrada para administrar os usuários do escritório:
+                        é por aqui que a plataforma cria o primeiro ADMIN de
+                        uma empresa recém-cadastrada. */}
+                    <Link
+                      className="ui-button ui-button--outline ui-button--sm"
+                      to={`${APP_ROUTES.users}?empresa=${c.id}`}
+                    >
+                      Usuários
+                    </Link>
                     <Button
                       variant="outline"
                       size="sm"

@@ -7,7 +7,11 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { PlatformGuard } from './guards/platform.guard';
+import { RequireTenantGuard } from './guards/require-tenant.guard';
 import { UsersModule } from '../users/users.module';
+import { CompanyModule } from '../company/company.module';
+import { PlatformAdminModule } from '../platform-admin/platform-admin.module';
 
 @Module({
     imports: [
@@ -24,9 +28,18 @@ import { UsersModule } from '../users/users.module';
             }),
         }),
         UsersModule,
+        CompanyModule,
+        PlatformAdminModule,
     ],
     controllers: [AuthController],
-    providers: [AuthService, JwtStrategy, JwtAuthGuard, RolesGuard],
-    exports: [JwtAuthGuard, RolesGuard],
+    providers: [
+        AuthService,
+        JwtStrategy,
+        JwtAuthGuard,
+        RolesGuard,
+        PlatformGuard,
+        RequireTenantGuard,
+    ],
+    exports: [JwtAuthGuard, RolesGuard, PlatformGuard, RequireTenantGuard],
 })
 export class AuthModule {}

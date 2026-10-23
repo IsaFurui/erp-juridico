@@ -55,6 +55,39 @@
   font-size: 14px;
 }
 
+/* Alternância entre acesso de escritório e da plataforma */
+.login-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 18px;
+  border-radius: var(--radius-md);
+  background: var(--muted, rgba(15, 23, 42, 0.06));
+}
+
+.login-mode {
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  padding: 9px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted-foreground, #64748b);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.login-mode:hover:not(.is-active) {
+  color: var(--primary);
+}
+
+.login-mode.is-active {
+  color: var(--primary);
+  background: var(--card, #fff);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
 .login-form {
   display: flex;
   flex-direction: column;

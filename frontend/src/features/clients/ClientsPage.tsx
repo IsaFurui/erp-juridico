@@ -3,11 +3,15 @@ import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import Icon from '../../components/ui/Icon'
 import { useAuth } from '../../contexts/AuthContext'
+import { isTenant } from '../../lib/jwt'
 import { formatCpfCnpj, documentKind } from '../../lib/document'
-import type { Client } from '../../lib/api'
+import type { Client, Paginated } from '../../lib/api'
 import { listClients, deactivateClient, activateClient } from './clients.api'
 import ClientFormModal from './ClientFormModal'
 import './ClientsPage.css'
+
+const PAGE_SIZE = 20
+const SEARCH_DEBOUNCE_MS = 350
 
 function formatDate(value: string): string {
   const date = new Date(value)
@@ -18,38 +22,72 @@ function formatDate(value: string): string {
 
 function ClientsPage() {
   const { user } = useAuth()
-  const isAdmin = user?.role === 'ADMIN'
+  // A rota é de escritório (TenantRoute); a sessão da plataforma não tem role
+  // nem empresa, então nunca é ADMIN aqui.
+  const isAdmin = user !== null && isTenant(user) && user.role === 'ADMIN'
 
-  const [clients, setClients] = useState<Client[]>([])
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [showInactive, setShowInactive] = useState(false)
+  // Muda sempre que uma escrita acontece, para a listagem ser buscada de novo
+  // em vez de remendada na mão — com busca e paginação, remendar erra o total.
+  const [reloadKey, setReloadKey] = useState(0)
+
+  const [result, setResult] = useState<Paginated<Client> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showInactive, setShowInactive] = useState(false)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<Client | null>(null)
+
+  // Espera a digitação parar antes de bater na API.
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setSearch(searchInput.trim()),
+      SEARCH_DEBOUNCE_MS,
+    )
+    return () => clearTimeout(timer)
+  }, [searchInput])
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
-    const run = async () => {
-      try {
-        const data = await listClients(isAdmin && showInactive)
+
+    listClients({
+      page,
+      pageSize: PAGE_SIZE,
+      search: search || undefined,
+      includeInactive: isAdmin && showInactive,
+    })
+      .then((data) => {
         if (cancelled) return
-        setClients(data)
+        setResult(data)
+        setError(null)
         setLoading(false)
-      } catch (err) {
+        // A última página pode ter sumido depois de inativar o único item.
+        if (data.items.length === 0 && data.page > data.pages) {
+          setPage(data.pages)
+        }
+      })
+      .catch((err: unknown) => {
         if (cancelled) return
         setError(
           err instanceof Error ? err.message : 'Erro ao carregar clientes.',
         )
         setLoading(false)
-      }
-    }
-    void run()
+      })
+
     return () => {
       cancelled = true
     }
-  }, [isAdmin, showInactive])
+  }, [page, search, showInactive, isAdmin, reloadKey])
+
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editing, setEditing] = useState<Client | null>(null)
+
+  const clients = result?.items ?? []
+  const total = result?.total ?? 0
+  const pages = result?.pages ?? 1
+  const isFiltered = search !== '' || showInactive
+
+  const refresh = () => setReloadKey((key) => key + 1)
 
   const openCreate = () => {
     setEditing(null)
@@ -61,25 +99,22 @@ function ClientsPage() {
     setModalOpen(true)
   }
 
-  const handleSaved = (saved: Client) => {
-    setClients((prev) => {
-      const exists = prev.some((c) => c.id === saved.id)
-      return exists
-        ? prev.map((c) => (c.id === saved.id ? saved : c))
-        : [saved, ...prev]
-    })
+  const handleSaved = () => refresh()
+
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value)
+    setPage(1)
+  }
+
+  const handleShowInactiveChange = (value: boolean) => {
+    setShowInactive(value)
+    setPage(1)
   }
 
   const handleDeactivate = async (target: Client) => {
     try {
       await deactivateClient(target.id)
-      setClients((prev) =>
-        showInactive
-          ? prev.map((c) =>
-              c.id === target.id ? { ...c, active: false } : c,
-            )
-          : prev.filter((c) => c.id !== target.id),
-      )
+      refresh()
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Erro ao inativar cliente.',
@@ -89,10 +124,8 @@ function ClientsPage() {
 
   const handleActivate = async (target: Client) => {
     try {
-      const updated = await activateClient(target.id)
-      setClients((prev) =>
-        prev.map((c) => (c.id === target.id ? updated : c)),
-      )
+      await activateClient(target.id)
+      refresh()
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Erro ao reativar cliente.',
@@ -114,18 +147,33 @@ function ClientsPage() {
       </div>
 
       <div className="ui-card">
-        {isAdmin && (
-          <div className="clients-toolbar">
+        <div className="clients-toolbar">
+          <input
+            type="search"
+            className="ui-input clients-search"
+            placeholder="Buscar por nome ou CPF/CNPJ"
+            aria-label="Buscar clientes"
+            value={searchInput}
+            onChange={(e) => handleSearchChange(e.target.value)}
+          />
+
+          {isAdmin && (
             <label className="clients-toggle">
               <input
                 type="checkbox"
                 checked={showInactive}
-                onChange={(e) => setShowInactive(e.target.checked)}
+                onChange={(e) => handleShowInactiveChange(e.target.checked)}
               />
               Mostrar inativos
             </label>
-          </div>
-        )}
+          )}
+
+          {total > 0 && (
+            <span className="clients-count">
+              {total} {total === 1 ? 'cliente' : 'clientes'}
+            </span>
+          )}
+        </div>
 
         {loading && (
           <div className="clients-loading">
@@ -141,7 +189,11 @@ function ClientsPage() {
         )}
 
         {!loading && !error && clients.length === 0 && (
-          <p className="ui-empty">Nenhum cliente cadastrado ainda.</p>
+          <p className="ui-empty">
+            {isFiltered
+              ? 'Nenhum cliente encontrado com esse filtro.'
+              : 'Nenhum cliente cadastrado ainda.'}
+          </p>
         )}
 
         {!loading && !error && clients.length > 0 && (
@@ -207,6 +259,30 @@ function ClientsPage() {
               ))}
             </tbody>
           </table>
+        )}
+
+        {!loading && !error && pages > 1 && (
+          <nav className="clients-pagination" aria-label="Paginação">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Anterior
+            </Button>
+            <span className="clients-page-info">
+              Página {page} de {pages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= pages}
+              onClick={() => setPage((p) => Math.min(pages, p + 1))}
+            >
+              Próxima
+            </Button>
+          </nav>
         )}
       </div>
 

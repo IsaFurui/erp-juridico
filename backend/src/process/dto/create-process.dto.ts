@@ -50,7 +50,10 @@ export class CreateProcessDto {
     @IsPositive()
     subtypeId?: number;
 
-    @ApiPropertyOptional({ example: 5000, description: 'Valor fixo (honorários)' })
+    @ApiPropertyOptional({
+        example: 5000,
+        description: 'Valor fixo (honorários)',
+    })
     @IsOptional()
     @IsNumber({ maxDecimalPlaces: 2 })
     @Min(0)

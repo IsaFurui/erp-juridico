@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { UserRole } from '../enums/user-role.enum';
 import { AuthenticatedRequest } from '../types/authenticated-request.type';
+import { isPlatform } from '../interfaces/jwt-payload.interface';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -19,6 +20,13 @@ export class RolesGuard implements CanActivate {
         const { user } = context
             .switchToHttp()
             .getRequest<AuthenticatedRequest>();
+
+        // O dono da plataforma passa em qualquer @Roles — os papéis descrevem
+        // cargos dentro de um escritório, e ele está acima disso. Passar no
+        // guard não dá acesso a dado de escritório nenhum: as rotas com dado
+        // de tenant exigem um companyId explícito (ver RequireTenantGuard).
+        if (isPlatform(user)) return true;
+
         return requiredRoles.includes(user.role);
     }
 }

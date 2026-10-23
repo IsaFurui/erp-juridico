@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { isPlatform } from '../../lib/jwt'
 import { getRoleLabel } from '../../lib/constants'
 import Icon, { type IconName } from '../../components/ui/Icon'
 import {
@@ -22,8 +23,12 @@ const MAIN_NAV: NavItem[] = [
 
 const ADMIN_NAV: NavItem[] = [
   { to: APP_ROUTES.users, label: 'Usuários', icon: 'users' },
-  { to: APP_ROUTES.companies, label: 'Empresas', icon: 'shield' },
   { to: APP_ROUTES.settings, label: 'Configurações', icon: 'settings' },
+]
+
+// Administração da plataforma, não do escritório.
+const PLATFORM_NAV: NavItem[] = [
+  { to: APP_ROUTES.companies, label: 'Empresas', icon: 'shield' },
 ]
 
 function SectionLabel({ children }: { children: string }) {
@@ -62,15 +67,28 @@ function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        <SectionLabel>Principal</SectionLabel>
-        {MAIN_NAV.map((item) => (
-          <NavItemLink key={item.to} item={item} />
-        ))}
+        {user && !isPlatform(user) && (
+          <>
+            <SectionLabel>Principal</SectionLabel>
+            {MAIN_NAV.map((item) => (
+              <NavItemLink key={item.to} item={item} />
+            ))}
+          </>
+        )}
 
-        {user?.role === 'ADMIN' && (
+        {user && !isPlatform(user) && user.role === 'ADMIN' && (
           <>
             <SectionLabel>Administração</SectionLabel>
             {ADMIN_NAV.map((item) => (
+              <NavItemLink key={item.to} item={item} />
+            ))}
+          </>
+        )}
+
+        {user && isPlatform(user) && (
+          <>
+            <SectionLabel>Plataforma</SectionLabel>
+            {PLATFORM_NAV.map((item) => (
               <NavItemLink key={item.to} item={item} />
             ))}
           </>
@@ -82,7 +100,8 @@ function Sidebar() {
         <div className="sidebar-user-info">
           <span className="sidebar-user-name">@{user?.login}</span>
           <span className="sidebar-user-role">
-            {user ? getRoleLabel(user.role) : ''}
+            {user && !isPlatform(user) ? getRoleLabel(user.role) : ''}
+            {user && isPlatform(user) ? 'Plataforma' : ''}
           </span>
         </div>
         <button

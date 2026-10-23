@@ -12,6 +12,11 @@
   transition: background 0.15s, border-color 0.15s, opacity 0.15s;
 }
 
+/* Links que se apresentam como botão (ex.: "Usuários" na lista de empresas) */
+a.ui-button {
+  text-decoration: none;
+}
+
 .ui-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;

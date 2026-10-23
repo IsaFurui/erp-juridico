@@ -8,6 +8,12 @@ export interface LoginPayload {
   password: string
 }
 
+/** O root não pertence a empresa nenhuma, então não manda companyId. */
+export interface PlatformLoginPayload {
+  login: string
+  password: string
+}
+
 export interface LoginResponse {
   access_token: string
 }
@@ -25,7 +31,11 @@ export interface CreateUserPayload {
   login: string
   password: string
   role?: UserRole
-  companyId: number
+  /**
+   * Obrigatório na sessão da plataforma (que não tem empresa própria);
+   * para um ADMIN, informar outra empresa devolve 403.
+   */
+  companyId?: number
 }
 
 export interface UpdateUserPayload {
@@ -66,6 +76,125 @@ export interface CreateClientPayload {
 export interface UpdateClientPayload {
   name?: string
   cpfCnpj?: string
+}
+
+/** Envelope das listagens paginadas — igual para todo módulo do backend. */
+export interface Paginated<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+  pages: number
+}
+
+export interface ListClientsParams {
+  page?: number
+  pageSize?: number
+  search?: string
+  /** Apenas ADMIN; o backend responde 403 para os demais. */
+  includeInactive?: boolean
+}
+
+/* ----------------------------- Processos ----------------------------- */
+
+/** Catálogo global de status. `isFinal` marca os status de encerramento. */
+export interface ProcessStatus {
+  id: number
+  description: string
+  isFinal: boolean
+}
+
+export interface ProcessType {
+  id: number
+  name: string
+}
+
+export interface ProcessSubtype {
+  id: number
+  name: string
+  processTypeId: number
+}
+
+/** Referência enxuta (cliente, tipo, subtipo) embutida no processo. */
+export interface ProcessRef {
+  id: number
+  name: string
+}
+
+export interface ProcessStatusRef {
+  id: number
+  description: string
+  isFinal: boolean
+}
+
+/**
+ * Item da listagem e corpo de create/update. Os valores são `Decimal` no
+ * banco e chegam como **string** no JSON; `fixedAmount`/`expectedAmount` podem
+ * ser nulos.
+ */
+export interface ProcessListItem {
+  id: number
+  name: string
+  code: string
+  fixedAmount: string | null
+  expectedAmount: string | null
+  totalAmount: string
+  client: ProcessRef
+  type: ProcessRef
+  subtype: ProcessRef | null
+  status: ProcessStatusRef
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProcessStatusHistoryItem {
+  id: number
+  changedAt: string
+  note: string | null
+  status: ProcessStatusRef
+  user: { id: number; name: string }
+}
+
+/** Detalhe = item + a linha do tempo de status. */
+export interface ProcessDetail extends ProcessListItem {
+  statusHistory: ProcessStatusHistoryItem[]
+}
+
+export interface ListProcessesParams {
+  page?: number
+  pageSize?: number
+  search?: string
+  statusId?: number
+  typeId?: number
+  clientId?: number
+}
+
+export interface CreateProcessPayload {
+  name: string
+  code: string
+  clientId: number
+  typeId: number
+  statusId: number
+  subtypeId?: number | null
+  fixedAmount?: number
+  expectedAmount?: number
+}
+
+export interface UpdateProcessPayload {
+  name?: string
+  code?: string
+  clientId?: number
+  typeId?: number
+  subtypeId?: number | null
+  fixedAmount?: number
+  expectedAmount?: number
+}
+
+export interface ChangeProcessStatusPayload {
+  statusId: number
+  /** Só é considerado quando o status alvo é de encerramento. */
+  totalAmount?: number
+  note?: string
 }
 
 export class ApiError extends Error {
@@ -183,11 +312,18 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  loginPlatform: (payload: PlatformLoginPayload): Promise<LoginResponse> =>
+    request('/auth/platform/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 }
 
 export const usersApi = {
-  listByCompany: (companyId: number): Promise<User[]> =>
-    request(`/users/company/${companyId}`),
+  // A empresa vem do token no backend. O companyId só é aceito (e exigido)
+  // na sessão da plataforma, que não tem empresa própria.
+  list: (companyId?: number): Promise<User[]> =>
+    request(companyId ? `/users?companyId=${companyId}` : '/users'),
   create: (payload: CreateUserPayload): Promise<User> =>
     request('/auth/register', {
       method: 'POST',
@@ -216,9 +352,19 @@ export const companyApi = {
     request(`/company/${id}/deactivate`, { method: 'PATCH' }),
 }
 
+function toQuery(params: Record<string, string | number | boolean | undefined>) {
+  const search = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === '') continue
+    search.set(key, String(value))
+  }
+  const qs = search.toString()
+  return qs ? `?${qs}` : ''
+}
+
 export const clientsApi = {
-  listAll: (includeInactive = false): Promise<Client[]> =>
-    request(`/clients${includeInactive ? '?includeInactive=true' : ''}`),
+  listAll: (params: ListClientsParams = {}): Promise<Paginated<Client>> =>
+    request(`/clients${toQuery({ ...params })}`),
   create: (payload: CreateClientPayload): Promise<Client> =>
     request('/clients', {
       method: 'POST',
@@ -233,4 +379,43 @@ export const clientsApi = {
     request(`/clients/${id}/deactivate`, { method: 'PATCH' }),
   activate: (id: number): Promise<Client> =>
     request(`/clients/${id}/activate`, { method: 'PATCH' }),
+}
+
+export const processesApi = {
+  listAll: (
+    params: ListProcessesParams = {},
+  ): Promise<Paginated<ProcessListItem>> =>
+    request(`/processes${toQuery({ ...params })}`),
+  getById: (id: number): Promise<ProcessDetail> => request(`/processes/${id}`),
+  create: (payload: CreateProcessPayload): Promise<ProcessListItem> =>
+    request('/processes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  update: (
+    id: number,
+    payload: UpdateProcessPayload,
+  ): Promise<ProcessListItem> =>
+    request(`/processes/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  changeStatus: (
+    id: number,
+    payload: ChangeProcessStatusPayload,
+  ): Promise<ProcessDetail> =>
+    request(`/processes/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+}
+
+export const processStatusApi = {
+  listAll: (): Promise<ProcessStatus[]> => request('/process-status'),
+}
+
+export const processTypeApi = {
+  listAll: (): Promise<ProcessType[]> => request('/process-type'),
+  listSubtypes: (id: number): Promise<ProcessSubtype[]> =>
+    request(`/process-type/${id}/subtypes`),
 }

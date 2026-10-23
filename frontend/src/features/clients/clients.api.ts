@@ -1,8 +1,10 @@
 import { clientsApi } from '../../lib/api'
-import type { Client } from '../../lib/api'
+import type { Client, ListClientsParams, Paginated } from '../../lib/api'
 
-export function listClients(includeInactive = false): Promise<Client[]> {
-  return clientsApi.listAll(includeInactive)
+export function listClients(
+  params: ListClientsParams = {},
+): Promise<Paginated<Client>> {
+  return clientsApi.listAll(params)
 }
 
 export function createClient(

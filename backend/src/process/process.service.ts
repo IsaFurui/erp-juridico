@@ -7,6 +7,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProcessDto } from './dto/create-process.dto';
 import { UpdateProcessDto } from './dto/update-process.dto';
+import { ChangeProcessStatusDto } from './dto/change-process-status.dto';
+import { ListProcessesQueryDto } from './dto/list-processes-query.dto';
+import type { Prisma } from '../../generated/prisma/client';
+import {
+    buildPaginated,
+    resolvePagination,
+    type Paginated,
+} from '../common/paginated';
 
 const PUBLIC_SELECT = {
     id: true,
@@ -20,51 +28,135 @@ const PUBLIC_SELECT = {
     client: { select: { id: true, name: true } },
     type: { select: { id: true, name: true } },
     subtype: { select: { id: true, name: true } },
-    status: { select: { id: true, description: true } },
+    status: { select: { id: true, description: true, isFinal: true } },
+};
+
+// Detalhe inclui o histórico de status (do mais recente para o mais antigo),
+// com quem mudou e a observação.
+const DETAIL_SELECT = {
+    ...PUBLIC_SELECT,
+    statusHistory: {
+        select: {
+            id: true,
+            changedAt: true,
+            note: true,
+            status: { select: { id: true, description: true, isFinal: true } },
+            user: { select: { id: true, name: true } },
+        },
+        orderBy: { changedAt: 'desc' as const },
+    },
 };
 
 @Injectable()
 export class ProcessService {
     constructor(private readonly prisma: PrismaService) {}
 
-    async create(dto: CreateProcessDto, companyId: number) {
+    async create(dto: CreateProcessDto, companyId: number, userId: number) {
         await this.ensureClient(dto.clientId, companyId);
         await this.ensureType(dto.typeId);
-        await this.ensureStatus(dto.statusId);
+        const status = await this.ensureStatus(dto.statusId);
         if (dto.subtypeId != null) {
             await this.ensureSubtype(dto.subtypeId, dto.typeId);
         }
         await this.ensureCodeAvailable(dto.code);
 
-        return this.prisma.process.create({
-            data: {
-                name: dto.name,
-                code: dto.code,
-                companyId,
-                clientId: dto.clientId,
-                typeId: dto.typeId,
-                statusId: dto.statusId,
-                subtypeId: dto.subtypeId ?? null,
-                fixedAmount: dto.fixedAmount ?? null,
-                expectedAmount: dto.expectedAmount ?? null,
-                totalAmount: dto.totalAmount ?? 0,
-            },
-            select: PUBLIC_SELECT,
+        // O Total só é manual quando o processo nasce já encerrado; senão é
+        // derivado de Entrada + Esperado.
+        const totalAmount =
+            status.isFinal && dto.totalAmount != null
+                ? dto.totalAmount
+                : this.computeTotal(dto.fixedAmount, dto.expectedAmount);
+
+        // Transação: o processo e a primeira linha do histórico nascem juntos.
+        return this.prisma.$transaction(async (tx) => {
+            const process = await tx.process.create({
+                data: {
+                    name: dto.name,
+                    code: dto.code,
+                    companyId,
+                    clientId: dto.clientId,
+                    typeId: dto.typeId,
+                    statusId: dto.statusId,
+                    subtypeId: dto.subtypeId ?? null,
+                    fixedAmount: dto.fixedAmount ?? null,
+                    expectedAmount: dto.expectedAmount ?? null,
+                    totalAmount,
+                },
+                select: PUBLIC_SELECT,
+            });
+
+            await tx.processStatusHistory.create({
+                data: {
+                    processId: process.id,
+                    statusId: dto.statusId,
+                    userId,
+                    note: 'Processo criado',
+                },
+            });
+
+            return process;
         });
     }
 
-    listAll(companyId: number) {
-        return this.prisma.process.findMany({
-            where: { companyId },
-            select: PUBLIC_SELECT,
-            orderBy: { createdAt: 'desc' },
-        });
+    /** Total previsto quando o processo está em andamento. */
+    private computeTotal(
+        fixed?: number | null,
+        expected?: number | null,
+    ): number {
+        return Number(fixed ?? 0) + Number(expected ?? 0);
+    }
+
+    async listAll(
+        companyId: number,
+        query: ListProcessesQueryDto,
+    ): Promise<Paginated<unknown>> {
+        const where = this.buildListWhere(companyId, query);
+        const { page, pageSize, skip, take } = resolvePagination(
+            query.page,
+            query.pageSize,
+        );
+
+        const [items, total] = await this.prisma.$transaction([
+            this.prisma.process.findMany({
+                where,
+                select: PUBLIC_SELECT,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take,
+            }),
+            this.prisma.process.count({ where }),
+        ]);
+
+        return buildPaginated(items, total, page, pageSize);
+    }
+
+    private buildListWhere(
+        companyId: number,
+        query: ListProcessesQueryDto,
+    ): Prisma.ProcessWhereInput {
+        const where: Prisma.ProcessWhereInput = {
+            companyId,
+            ...(query.statusId !== undefined && { statusId: query.statusId }),
+            ...(query.typeId !== undefined && { typeId: query.typeId }),
+            ...(query.clientId !== undefined && { clientId: query.clientId }),
+        };
+
+        const term = query.search?.trim();
+        if (!term) return where;
+
+        // Busca pelo nome/título ou pelo número (code) do processo.
+        where.OR = [
+            { name: { contains: term, mode: 'insensitive' } },
+            { code: { contains: term, mode: 'insensitive' } },
+        ];
+
+        return where;
     }
 
     async findById(id: number, companyId: number) {
         const process = await this.prisma.process.findFirst({
             where: { id, companyId },
-            select: PUBLIC_SELECT,
+            select: DETAIL_SELECT,
         });
         if (!process) throw new NotFoundException('Processo não encontrado');
         return process;
@@ -79,9 +171,6 @@ export class ProcessService {
         if (dto.typeId !== undefined) {
             await this.ensureType(dto.typeId);
         }
-        if (dto.statusId !== undefined) {
-            await this.ensureStatus(dto.statusId);
-        }
         if (dto.subtypeId != null) {
             const effectiveTypeId = dto.typeId ?? current.type.id;
             await this.ensureSubtype(dto.subtypeId, effectiveTypeId);
@@ -90,28 +179,88 @@ export class ProcessService {
             await this.ensureCodeAvailable(dto.code);
         }
 
+        const data: Prisma.ProcessUncheckedUpdateInput = {
+            ...(dto.name !== undefined && { name: dto.name }),
+            ...(dto.code !== undefined && { code: dto.code }),
+            ...(dto.clientId !== undefined && { clientId: dto.clientId }),
+            ...(dto.typeId !== undefined && { typeId: dto.typeId }),
+            ...(dto.subtypeId !== undefined && { subtypeId: dto.subtypeId }),
+            ...(dto.fixedAmount !== undefined && {
+                fixedAmount: dto.fixedAmount,
+            }),
+            ...(dto.expectedAmount !== undefined && {
+                expectedAmount: dto.expectedAmount,
+            }),
+        };
+
+        // O status só muda pela rota dedicada. Aqui, enquanto o processo não
+        // estiver encerrado, o Total acompanha Entrada + Esperado; num processo
+        // já encerrado o Total ajustado é preservado.
+        if (!current.status.isFinal) {
+            const newFixed = dto.fixedAmount ?? Number(current.fixedAmount ?? 0);
+            const newExpected =
+                dto.expectedAmount ?? Number(current.expectedAmount ?? 0);
+            data.totalAmount = this.computeTotal(newFixed, newExpected);
+        }
+
         return this.prisma.process.update({
             where: { id },
-            data: {
-                ...(dto.name !== undefined && { name: dto.name }),
-                ...(dto.code !== undefined && { code: dto.code }),
-                ...(dto.clientId !== undefined && { clientId: dto.clientId }),
-                ...(dto.typeId !== undefined && { typeId: dto.typeId }),
-                ...(dto.statusId !== undefined && { statusId: dto.statusId }),
-                ...(dto.subtypeId !== undefined && {
-                    subtypeId: dto.subtypeId,
-                }),
-                ...(dto.fixedAmount !== undefined && {
-                    fixedAmount: dto.fixedAmount,
-                }),
-                ...(dto.expectedAmount !== undefined && {
-                    expectedAmount: dto.expectedAmount,
-                }),
-                ...(dto.totalAmount !== undefined && {
-                    totalAmount: dto.totalAmount,
-                }),
-            },
+            data,
             select: PUBLIC_SELECT,
+        });
+    }
+
+    async changeStatus(
+        id: number,
+        dto: ChangeProcessStatusDto,
+        companyId: number,
+        userId: number,
+    ) {
+        const current = await this.findById(id, companyId);
+        const status = await this.ensureStatus(dto.statusId);
+
+        const derived = this.computeTotal(
+            Number(current.fixedAmount ?? 0),
+            Number(current.expectedAmount ?? 0),
+        );
+        // Encerrou: o advogado pode fixar o Total que realmente entrou. Em
+        // qualquer outro status o Total volta a ser o previsto.
+        const totalAmount =
+            status.isFinal && dto.totalAmount != null
+                ? dto.totalAmount
+                : derived;
+
+        // Só é "ajuste" quando o encerramento muda de fato o Total previsto —
+        // comparado em centavos para não tropeçar em ponto flutuante. Encerrar
+        // mantendo o valor derivado não deve poluir o histórico com "ajustado".
+        const isAdjusted =
+            status.isFinal &&
+            dto.totalAmount != null &&
+            Math.round(dto.totalAmount * 100) !== Math.round(derived * 100);
+
+        const note =
+            dto.note ??
+            (isAdjusted
+                ? `Total ajustado para ${this.formatBRL(totalAmount)}`
+                : null);
+
+        await this.prisma.$transaction(async (tx) => {
+            await tx.process.update({
+                where: { id },
+                data: { statusId: dto.statusId, totalAmount },
+            });
+            await tx.processStatusHistory.create({
+                data: { processId: id, statusId: dto.statusId, userId, note },
+            });
+        });
+
+        return this.findById(id, companyId);
+    }
+
+    private formatBRL(value: number): string {
+        return value.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
         });
     }
 
@@ -148,6 +297,7 @@ export class ProcessService {
             where: { id: statusId },
         });
         if (!status) throw new BadRequestException('Status inválido');
+        return status;
     }
 
     private async ensureSubtype(subtypeId: number, typeId: number) {

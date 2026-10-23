@@ -13,6 +13,11 @@ export const APP_ROUTES = {
   settings: '/admin/configuracoes',
 } as const
 
+/** Caminho da página de um processo específico. */
+export function processDetailPath(id: number): string {
+  return `${APP_ROUTES.processes}/${id}`
+}
+
 export const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Administrador',
   FINANCEIRO: 'Financeiro',

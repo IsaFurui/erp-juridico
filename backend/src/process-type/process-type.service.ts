@@ -27,7 +27,9 @@ export class ProcessTypeService {
     }
 
     async findById(id: number) {
-        const type = await this.prisma.processType.findUnique({ where: { id } });
+        const type = await this.prisma.processType.findUnique({
+            where: { id },
+        });
         if (!type) throw new NotFoundException('Tipo não encontrado');
         return type;
     }

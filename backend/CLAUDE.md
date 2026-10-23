@@ -48,22 +48,27 @@ Usa o **driver adapter** `@prisma/adapter-pg` (`PrismaPg`), com a `connectionStr
 
 ### Fluxo de autenticação
 
-1. `POST /auth/login` → `AuthService.login()` → valida credenciais com bcrypt → retorna JWT
-2. Rotas protegidas usam `JwtAuthGuard` (Passport extrai e valida o token)
-3. `RolesGuard` lê os metadados `@Roles()` e verifica `payload.role`
+1. `POST /auth/login` (escritório: pede `companyId`) ou `POST /auth/platform/login`
+   (root: não pede empresa) → valida com bcrypt → retorna JWT com `scope`
+2. O login de escritório recusa empresa inativa
+3. Rotas protegidas usam `JwtAuthGuard` (Passport extrai e valida o token)
+4. `RolesGuard`, `PlatformGuard` e `RequireTenantGuard` decidem o resto —
+   ver "Dois escopos de sessão" abaixo
 
 ### Arquivos
 
 | Arquivo                          | Responsabilidade                                      |
 |----------------------------------|-------------------------------------------------------|
 | `auth.service.ts`                | login + register (hash bcrypt, emite JWT)             |
-| `auth.controller.ts`             | Endpoints: `POST /login`, `POST /register`, `GET /me` |
+| `auth.controller.ts`             | `POST /login`, `POST /platform/login`, `POST /register`, `GET /me` |
 | `strategies/jwt.strategy.ts`     | Extrai e valida payload do token Bearer               |
 | `guards/jwt-auth.guard.ts`       | Protege rotas com JWT (`@UseGuards(JwtAuthGuard)`)    |
 | `guards/roles.guard.ts`          | RBAC — verifica papel do usuário                      |
 | `decorators/roles.decorator.ts`  | `@Roles(UserRole.ADMIN)` — define roles obrigatórios  |
 | `decorators/current-user.decorator.ts` | `@CurrentUser()` — injeta payload JWT no param  |
-| `enums/user-role.enum.ts`        | `UserRole.ADMIN / FINANCEIRO / OPERACIONAL`           |
+| `enums/user-role.enum.ts`        | `UserRole.ADMIN / FINANCEIRO / OPERACIONAL` (papéis de escritório) |
+| `guards/platform.guard.ts`       | Só sessão da plataforma                               |
+| `guards/require-tenant.guard.ts` | Só sessão de escritório                               |
 | `interfaces/jwt-payload.interface.ts` | Shape do payload JWT                             |
 | `types/authenticated-request.type.ts` | `Request` tipado com `user: JwtPayload`          |
 | `dto/login.dto.ts`               | Body de login validado                                |
@@ -75,6 +80,9 @@ Usa o **driver adapter** `@prisma/adapter-pg` (`PrismaPg`), com a `connectionStr
 JWT_SECRET=<string-secreta>
 JWT_EXPIRES_IN=7d        # Formato ms: 7d, 1h, 30m...
 DATABASE_URL=postgresql://...
+
+PLATFORM_ADMIN_LOGIN=root        # usado pelo seed
+PLATFORM_ADMIN_PASSWORD=<senha>  # sem ela o seed não cria o root
 ```
 
 ---
@@ -95,21 +103,69 @@ Nunca retorna `passwordHash` nos selects públicos.
 
 ---
 
-## RBAC — Papéis de Usuário
+## Dois escopos de sessão
+
+O token carrega um `scope`, e ele decide quase tudo:
+
+| Escopo     | Tabela          | Tem empresa? | Pode                                        |
+|------------|-----------------|--------------|---------------------------------------------|
+| `tenant`   | `User`          | sempre       | dados do próprio escritório                 |
+| `platform` | `PlatformAdmin` | nunca        | o módulo `company` e usuários de qualquer empresa |
+
+`JwtPayload` é uma **união discriminada** (`TenantJwtPayload | PlatformJwtPayload`)
+de propósito: `sub` é id de tabelas diferentes nos dois casos, e `companyId` só
+existe num deles — o TypeScript obriga a estreitar com `isTenant()` / `isPlatform()`
+antes de usar qualquer um dos dois.
+
+O administrador da plataforma **nasce só pelo seed** (`PLATFORM_ADMIN_PASSWORD`
+no `.env`). Não há rota que crie ou promova ninguém a root: um token roubado não
+consegue fabricar um segundo dono, e nenhum registro de `User` vira root.
+
+### Guards
+
+| Guard                | Efeito                                                              |
+|----------------------|---------------------------------------------------------------------|
+| `JwtAuthGuard`       | exige token válido (e com `scope` conhecido)                        |
+| `RolesGuard`         | checa `@Roles(...)`; a sessão `platform` passa em qualquer um        |
+| `PlatformGuard`      | só sessão `platform` — use no que atravessa escritórios             |
+| `RequireTenantGuard` | só sessão `tenant` — use em toda rota de dado de escritório         |
+
+Nos handlers, `@CurrentTenant()` e `@CurrentPlatform()` entregam o payload já
+estreitado (e repetem a checagem, caso o guard tenha sido esquecido).
+
+## RBAC — Papéis dentro do escritório
 
 | Role          | Acesso                                    |
 |---------------|-------------------------------------------|
-| `ADMIN`       | Tudo: criar usuários, ver todos os dados  |
+| `ADMIN`       | Usuários e clientes do próprio escritório |
 | `FINANCEIRO`  | Módulo financeiro (despesas)              |
 | `OPERACIONAL` | Módulo de processos e clientes            |
+
+### Fronteira do tenant — regra que vale para todo módulo novo
+
+O `companyId` **sempre** vem do token (`@CurrentTenant() user: TenantJwtPayload`),
+nunca do body nem da URL. Toda consulta de dado de escritório leva `companyId`
+no `where`; id de outra empresa responde 404, não 403, para não revelar que o
+registro existe. A única exceção é a sessão da plataforma, que por não ter
+empresa precisa informar uma explicitamente (`?companyId=`) — e isso é sempre
+explícito no código. Cobertura: `src/**/*.spec.ts` e
+`test/tenant-isolation.e2e-spec.ts`.
 
 ### Como usar em novos controllers
 
 ```typescript
-@UseGuards(JwtAuthGuard, RolesGuard)
+// Dado de escritório (o caso comum)
+@UseGuards(JwtAuthGuard, RequireTenantGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
 @Get('rota-protegida')
-minhaRota(@CurrentUser() user: JwtPayload) { ... }
+minhaRota(@CurrentTenant() user: TenantJwtPayload) {
+    // user.companyId é number, e vai no where de toda consulta
+}
+
+// Rota da plataforma (atravessa escritórios)
+@UseGuards(JwtAuthGuard, PlatformGuard)
+@Get('rota-da-plataforma')
+rotaDaPlataforma(@CurrentPlatform() admin: PlatformJwtPayload) { ... }
 ```
 
 ---

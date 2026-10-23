@@ -1,9 +1,13 @@
 import { useAuth } from '../../contexts/AuthContext'
+import { isTenant } from '../../lib/jwt'
 import { getRoleLabel } from '../../lib/constants'
 import Badge from '../../components/ui/Badge'
 
 function Dashboard() {
   const { user } = useAuth()
+  // A rota já é de escritório (TenantRoute); narrow para o companyName e o
+  // role existirem no tipo.
+  const tenant = user && isTenant(user) ? user : null
 
   return (
     <div className="dashboard">
@@ -11,20 +15,20 @@ function Dashboard() {
         <h2 className="page-title">Bem-vindo(a), {user?.login}!</h2>
         <div className="dashboard-meta">
           <p className="page-subtitle">
-            {user?.companyName ? (
+            {tenant?.companyName ? (
               <>
-                {user.companyName} ·{' '}
+                {tenant.companyName} ·{' '}
               </>
             ) : (
               <>
-                Empresa {user?.companyId} ·{' '}
+                Empresa {tenant?.companyId} ·{' '}
               </>
             )}
-            {user ? getRoleLabel(user.role) : ''}
+            {tenant ? getRoleLabel(tenant.role) : ''}
           </p>
-          {user && (
-            <Badge variant={user.role === 'ADMIN' ? 'info' : 'neutral'}>
-              {user.role}
+          {tenant && (
+            <Badge variant={tenant.role === 'ADMIN' ? 'info' : 'neutral'}>
+              {tenant.role}
             </Badge>
           )}
         </div>

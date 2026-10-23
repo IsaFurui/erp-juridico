@@ -1,0 +1,227 @@
+.detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 16px;
+}
+
+.detail-back:hover {
+  color: var(--primary);
+}
+
+.detail-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+
+.detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.detail-code {
+  font-size: 12.5px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 4px;
+}
+
+.detail-name {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.detail-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-panel {
+  padding: 18px;
+}
+
+.detail-panel-title {
+  margin: 0 0 14px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-foreground);
+}
+
+.detail-kv {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 10px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.detail-kv dt {
+  color: var(--muted-foreground);
+}
+
+.detail-kv dd {
+  margin: 0;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.detail-money {
+  display: grid;
+  gap: 10px;
+}
+
+.detail-money-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.detail-money-row .lbl {
+  color: var(--muted-foreground);
+}
+
+.detail-money-row .val {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+.detail-money-row.total {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 2px;
+}
+
+.detail-money-row.total .lbl {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.detail-money-row.total .val {
+  color: var(--primary);
+  font-size: 16px;
+}
+
+.adjusted {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--success);
+  background: var(--success-light);
+  border-radius: 4px;
+  padding: 1px 6px;
+  vertical-align: middle;
+}
+
+.detail-money-note {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--muted-foreground);
+}
+
+/* timeline */
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.tl-item {
+  position: relative;
+  padding: 0 0 18px 24px;
+  display: grid;
+  gap: 1px;
+}
+
+.tl-item:last-child {
+  padding-bottom: 0;
+}
+
+.tl-item::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--border);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.tl-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 13px;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+
+.tl-item.current::before {
+  background: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.tl-date {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.tl-status {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.tl-who {
+  font-size: 12.5px;
+  color: var(--muted-foreground);
+}

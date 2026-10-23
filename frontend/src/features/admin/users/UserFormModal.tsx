@@ -10,7 +10,12 @@ import './UserFormModal.css'
 interface UserFormModalProps {
   opened: boolean
   initial: User | null
-  companyId: number
+  /**
+   * Só a sessão da plataforma informa: ela não tem empresa própria, então
+   * precisa dizer em qual escritório o usuário está sendo criado. Para um
+   * ADMIN fica indefinido e o backend usa a empresa do token.
+   */
+  companyId?: number
   onClose: () => void
   onSaved: (user: User) => void
 }
@@ -76,7 +81,7 @@ function UserFormModal({
           login: form.login.trim(),
           password: form.password,
           role: form.role,
-          companyId,
+          ...(companyId !== undefined && { companyId }),
         }
         const created = await createUser(payload)
         onSaved(created)

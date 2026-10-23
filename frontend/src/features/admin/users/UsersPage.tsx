@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import Button from '../../../components/ui/Button'
 import Badge from '../../../components/ui/Badge'
 import Icon from '../../../components/ui/Icon'
 import { useAuth } from '../../../contexts/AuthContext'
-import { getRoleLabel } from '../../../lib/constants'
+import { isPlatform } from '../../../lib/jwt'
+import { APP_ROUTES, getRoleLabel } from '../../../lib/constants'
 import type { User } from '../../../lib/api'
 import { listUsers } from './users.api'
 import UserFormModal from './UserFormModal'
@@ -16,6 +18,18 @@ const ROLE_BADGE: Record<string, 'info' | 'success' | 'neutral'> = {
 
 function UsersPage() {
   const { user } = useAuth()
+  const [searchParams] = useSearchParams()
+  // A sessão da plataforma não tem empresa própria: ela administra o
+  // escritório que veio na querystring, a partir do painel de Empresas.
+  const platform = user ? isPlatform(user) : false
+  const requested = Number(searchParams.get('empresa'))
+  const targetCompanyId = platform
+    ? Number.isInteger(requested) && requested > 0
+      ? requested
+      : null
+    : null
+  const missingCompany = platform && targetCompanyId === null
+
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -24,10 +38,13 @@ function UsersPage() {
 
   useEffect(() => {
     if (!user) return
+    // Sem empresa escolhida não há o que buscar; o card mostra o aviso e o
+    // spinner fica escondido pela própria condição de render.
+    if (missingCompany) return
     let cancelled = false
     const run = async () => {
       try {
-        const data = await listUsers(user.companyId)
+        const data = await listUsers(targetCompanyId ?? undefined)
         if (cancelled) return
         setUsers(data)
         setLoading(false)
@@ -43,7 +60,7 @@ function UsersPage() {
     return () => {
       cancelled = true
     }
-  }, [user])
+  }, [user, targetCompanyId, missingCompany])
 
   const openCreate = () => {
     setEditing(null)
@@ -72,30 +89,44 @@ function UsersPage() {
         <div className="page-header-info">
           <h1 className="page-title">Usuários</h1>
           <p className="page-subtitle">
-            Gerencie os acessos {user.companyName ? `de ${user.companyName}` : `da empresa ${user.companyId}`}.
+            {platform
+              ? `Gerencie os acessos da empresa ${targetCompanyId ?? '—'}.`
+              : `Gerencie os acessos ${
+                  !isPlatform(user) && user.companyName
+                    ? `de ${user.companyName}`
+                    : 'da sua empresa'
+                }.`}
           </p>
         </div>
-        <Button onClick={openCreate}>
+        <Button onClick={openCreate} disabled={missingCompany}>
           <Icon name="plus" size={16} />
           Novo usuário
         </Button>
       </div>
 
       <div className="ui-card">
-        {loading && (
+        {missingCompany && (
+          <p className="ui-empty">
+            Escolha um escritório em{' '}
+            <Link to={APP_ROUTES.companies}>Empresas</Link> para ver e cadastrar
+            os usuários dele.
+          </p>
+        )}
+
+        {!missingCompany && loading && (
           <div className="users-loading">
             <span className="ui-spinner" />
             Carregando…
           </div>
         )}
 
-        {!loading && error && (
+        {!missingCompany && !loading && error && (
           <p className="ui-alert ui-alert--error" role="alert">
             {error}
           </p>
         )}
 
-        {!loading && !error && (users ?? []).length === 0 && (
+        {!missingCompany && !loading && !error && (users ?? []).length === 0 && (
           <p className="ui-empty">Nenhum usuário cadastrado ainda.</p>
         )}
 
@@ -140,7 +171,7 @@ function UsersPage() {
           key={editing?.id ?? 'new'}
           opened={modalOpen}
           initial={editing}
-          companyId={user.companyId}
+          companyId={targetCompanyId ?? undefined}
           onClose={() => setModalOpen(false)}
           onSaved={handleSaved}
         />
