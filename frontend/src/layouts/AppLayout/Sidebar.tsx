@@ -8,17 +8,26 @@ import {
 } from '../../lib/constants'
 import '../../components/ui/ui.css'
 
+type Role = 'ADMIN' | 'FINANCEIRO' | 'OPERACIONAL'
+
 interface NavItem {
   to: string
   label: string
   icon: IconName
+  /** Se presente, só esses papéis veem o item. */
+  roles?: Role[]
 }
 
 const MAIN_NAV: NavItem[] = [
   { to: APP_ROUTES.dashboard, label: 'Dashboard', icon: 'dashboard' },
   { to: APP_ROUTES.clients, label: 'Clientes', icon: 'clients' },
   { to: APP_ROUTES.processes, label: 'Processos', icon: 'processes' },
-  { to: APP_ROUTES.finance, label: 'Financeiro', icon: 'finance' },
+  {
+    to: APP_ROUTES.finance,
+    label: 'Financeiro',
+    icon: 'finance',
+    roles: ['ADMIN', 'FINANCEIRO'],
+  },
 ]
 
 const ADMIN_NAV: NavItem[] = [
@@ -70,7 +79,9 @@ function Sidebar() {
         {user && !isPlatform(user) && (
           <>
             <SectionLabel>Principal</SectionLabel>
-            {MAIN_NAV.map((item) => (
+            {MAIN_NAV.filter(
+              (item) => !item.roles || item.roles.includes(user.role),
+            ).map((item) => (
               <NavItemLink key={item.to} item={item} />
             ))}
           </>

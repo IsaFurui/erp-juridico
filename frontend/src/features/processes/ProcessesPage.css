@@ -37,8 +37,8 @@
 
 .processes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
 }
 
 .process-card {
@@ -50,7 +50,7 @@
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 16px;
+  padding: 20px;
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
@@ -67,7 +67,7 @@
 
 .process-card-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
@@ -76,6 +76,15 @@
   font-size: 12px;
   color: var(--muted-foreground);
   font-variant-numeric: tabular-nums;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* O badge de status fica fixo no canto, numa linha só — sem encolher nem
+   quebrar o texto para fora do cartão. */
+.process-card-top .ui-badge {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .process-card-name {

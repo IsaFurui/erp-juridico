@@ -197,6 +197,64 @@ export interface ChangeProcessStatusPayload {
   note?: string
 }
 
+/* ------------------------------ Despesas ----------------------------- */
+
+/** Espelha o enum `ExpenseCategory` do backend. O rótulo vive no front. */
+export type ExpenseCategory =
+  | 'ALUGUEL'
+  | 'CONTAS'
+  | 'PESSOAL'
+  | 'SOFTWARE'
+  | 'IMPOSTOS'
+  | 'MARKETING'
+  | 'MATERIAL'
+  | 'CUSTAS'
+  | 'OUTROS'
+
+/** `amount` é `Decimal` no banco e chega como **string** no JSON. */
+export interface Expense {
+  id: number
+  name: string
+  amount: string
+  category: ExpenseCategory
+  date: string
+  createdAt: string
+}
+
+export interface ExpenseSummary {
+  totalAmount: string
+  count: number
+  byCategory: {
+    category: ExpenseCategory
+    totalAmount: string
+    count: number
+  }[]
+}
+
+export interface CreateExpensePayload {
+  name: string
+  amount: number
+  category: ExpenseCategory
+  date?: string
+}
+
+export interface UpdateExpensePayload {
+  name?: string
+  amount?: number
+  category?: ExpenseCategory
+  date?: string
+}
+
+export interface ListExpensesParams {
+  page?: number
+  pageSize?: number
+  search?: string
+  category?: ExpenseCategory
+  /** Intervalo de datas (ISO, inclusivo). */
+  from?: string
+  to?: string
+}
+
 export class ApiError extends Error {
   status: number
 
@@ -408,6 +466,26 @@ export const processesApi = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+}
+
+export const expensesApi = {
+  listAll: (params: ListExpensesParams = {}): Promise<Paginated<Expense>> =>
+    request(`/expenses${toQuery({ ...params })}`),
+  summary: (params: ListExpensesParams = {}): Promise<ExpenseSummary> =>
+    request(`/expenses/summary${toQuery({ ...params })}`),
+  getById: (id: number): Promise<Expense> => request(`/expenses/${id}`),
+  create: (payload: CreateExpensePayload): Promise<Expense> =>
+    request('/expenses', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  update: (id: number, payload: UpdateExpensePayload): Promise<Expense> =>
+    request(`/expenses/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: number): Promise<void> =>
+    request(`/expenses/${id}`, { method: 'DELETE' }),
 }
 
 export const processStatusApi = {

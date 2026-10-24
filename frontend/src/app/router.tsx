@@ -10,6 +10,7 @@ import CompanyPage from '../features/admin/company/CompanyPage'
 import ClientsPage from '../features/clients/ClientsPage'
 import ProcessesPage from '../features/processes/ProcessesPage'
 import ProcessDetailPage from '../features/processes/ProcessDetailPage'
+import FinanceExpensesPage from '../features/finance/FinanceExpensesPage'
 import { APP_ROUTES } from '../lib/constants'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -43,6 +44,16 @@ function TenantRoute({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   if (!user || isPlatform(user))
     return <Navigate to={APP_ROUTES.companies} replace />
+  return children
+}
+
+// O financeiro é só de ADMIN e FINANCEIRO; o OPERACIONAL cai no dashboard.
+function FinanceRoute({ children }: { children: ReactNode }) {
+  const { user } = useAuth()
+  if (!user || isPlatform(user))
+    return <Navigate to={APP_ROUTES.companies} replace />
+  if (user.role !== 'ADMIN' && user.role !== 'FINANCEIRO')
+    return <Navigate to={APP_ROUTES.dashboard} replace />
   return children
 }
 
@@ -93,9 +104,9 @@ function AppRouter() {
         <Route
           path={APP_ROUTES.finance}
           element={
-            <TenantRoute>
-              <ComingSoon title="Financeiro" />
-            </TenantRoute>
+            <FinanceRoute>
+              <FinanceExpensesPage />
+            </FinanceRoute>
           }
         />
 

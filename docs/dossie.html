@@ -566,35 +566,35 @@
 <div class="wrap">
 
   <header class="masthead">
-    <p class="eyebrow">Dossiê atualizado · 23 out 2026 · branch feat/fase-0-fronteira-tenant · pós-Fase 1</p>
+    <p class="eyebrow">Dossiê atualizado · 24 out 2026 · branch feat/fase-3-financeiro · pós-Fase 3</p>
     <h1>Dossiê ERP&nbsp;Jurídico</h1>
     <p class="deck">
       ERP multi-empresa para escritórios de advocacia. A fronteira entre escritórios está
-      fechada e coberta por teste, e o núcleo do negócio — processos — já tem API inteira.
-      O que falta é tela de processo, o financeiro e o dashboard.
+      fechada e coberta por teste; processos é ponta a ponta; e agora o financeiro também —
+      despesas por categoria, filtro por período e total do período. O que falta é o dashboard.
     </p>
 
     <dl class="ficha">
       <div><dt>Backend</dt><dd>NestJS 11 · Prisma 7</dd></div>
       <div><dt>Frontend</dt><dd>React 19 · Vite 8</dd></div>
       <div><dt>Banco</dt><dd>PostgreSQL 16</dd></div>
-      <div><dt>Tabelas</dt><dd>9 · 4 migrations</dd></div>
-      <div><dt>Módulos Nest</dt><dd>8</dd></div>
-      <div><dt>Endpoints</dt><dd>36</dd></div>
-      <div><dt>Telas prontas</dt><dd>5 de 9</dd></div>
-      <div><dt>Testes</dt><dd>37 · + e2e</dd></div>
+      <div><dt>Tabelas</dt><dd>10 · 6 migrations</dd></div>
+      <div><dt>Módulos Nest</dt><dd>9</dd></div>
+      <div><dt>Endpoints</dt><dd>43</dd></div>
+      <div><dt>Telas prontas</dt><dd>7 de 9</dd></div>
+      <div><dt>Testes</dt><dd>62 · + e2e</dd></div>
     </dl>
 
     <div class="strip-block">
-      <div class="strip" role="img" aria-label="Dos 10 domínios do sistema: 4 prontos ponta a ponta, 4 só com API, 2 não iniciados.">
-        <span class="s-ok"   style="flex:4" title="Autenticação, Usuários, Empresas, Clientes"></span>
-        <span class="s-wip"  style="flex:4" title="Processos, Status de processo, Tipos de processo, Subtipos"></span>
-        <span class="s-todo" style="flex:2" title="Financeiro, Dashboard"></span>
+      <div class="strip" role="img" aria-label="Dos 10 domínios do sistema: 6 prontos ponta a ponta, 3 só com API, 1 não iniciado.">
+        <span class="s-ok"   style="flex:6" title="Autenticação, Usuários, Empresas, Clientes, Processos, Financeiro"></span>
+        <span class="s-wip"  style="flex:3" title="Status de processo, Tipos de processo, Subtipos"></span>
+        <span class="s-todo" style="flex:1" title="Dashboard"></span>
       </div>
       <div class="strip-key">
-        <span><i style="background:var(--ok)"></i>4 domínios ponta a ponta</span>
-        <span><i style="background:var(--wip)"></i>4 só com API, sem tela</span>
-        <span><i style="background:var(--todo-bg);border:1px solid var(--line)"></i>2 não iniciados</span>
+        <span><i style="background:var(--ok)"></i>6 domínios ponta a ponta</span>
+        <span><i style="background:var(--wip)"></i>3 só com API, sem tela</span>
+        <span><i style="background:var(--todo-bg);border:1px solid var(--line)"></i>1 não iniciado</span>
       </div>
     </div>
 
@@ -615,13 +615,16 @@
 
     <div class="callout">
       <p>
-        <b>O que mudou desde o primeiro levantamento (22 out).</b> A Fase 0 foi implementada:
-        o módulo <code>company</code> ficou fechado, <code>clients</code> e <code>users</code>
-        passaram a ser escopados por empresa, e o dono da plataforma saiu da tabela
-        <code>User</code> para uma tabela própria, <code>PlatformAdmin</code>, fora da árvore de
-        <code>Company</code> — por isso a tela de login agora tem dois modos. Depois disso, um
-        merge com a <code>main</code> trouxe o módulo de processos e a tela de clientes.
-        Este documento descreve o estado de <code>59b93bb</code>.
+        <b>O que mudou desde o levantamento anterior (pós-Fase 2).</b> A Fase 3 entregou o
+        <code>financeiro</code>: a tabela <code>Expense</code>, que existia sem módulo, virou
+        CRUD ponta a ponta — lançamento de despesas com categoria (enum de 9 valores) e data,
+        lista com busca, filtro por categoria e por período, e uma faixa de "total do período"
+        (<code>GET /expenses/summary</code>). E a role <code>FINANCEIRO</code>, que não
+        protegia nada, finalmente trabalha: <code>/expenses</code> é exclusivo de
+        <code>ADMIN</code> e <code>FINANCEIRO</code> — <code>OPERACIONAL</code> leva 403 e nem
+        vê o item no menu. Decisão de produto registrada: a despesa é custo do escritório, sem
+        vínculo a processo ou cliente. Este documento descreve o estado da branch
+        <code>feat/fase-3-financeiro</code>.
       </p>
     </div>
 
@@ -663,8 +666,10 @@ npx prisma generate      <span class="c"># cria generated/prisma, que não vai p
         <h4>Aplicar as migrations</h4>
         <pre class="sh">npx prisma migrate deploy</pre>
         <p>
-          São quatro, a última é <code>20261022120000_platform_admin</code>.
-          <code>migrate dev</code> só quando estiver alterando o schema.
+          São seis, a última é <code>20261024033015_add_expense_category_and_date</code>.
+          <code>migrate dev</code> só quando estiver alterando o schema. Puxou a branch e o seed
+          reclama de <code>isFinal</code>? Rode <code>prisma generate</code> e
+          <code>migrate deploy</code> antes — ver a tabela no fim desta seção.
         </p>
       </li>
 
@@ -728,8 +733,8 @@ npm run dev              <span class="c"># http://localhost:5173</span></pre>
 
     <h3>Testes</h3>
     <pre class="sh">cd backend
-npm test                 <span class="c"># 37 testes, não precisa de banco</span>
-npm run test:e2e         <span class="c"># isolamento entre tenants — precisa do Postgres de pé</span>
+npm test                 <span class="c"># 62 testes, não precisa de banco</span>
+npm run test:e2e         <span class="c"># isolamento, processos e despesas — precisa do Postgres de pé</span>
 
 cd ../frontend
 npx tsc -b               <span class="c"># typecheck</span>
@@ -767,6 +772,10 @@ npm run lint</pre>
             <td>Token de antes da Fase 0: sem <code>scope</code>, o backend recusa e o front derruba a sessão. Entrar de novo resolve.</td>
           </tr>
           <tr>
+            <td class="tight">Seed falha com <code>Unknown argument isFinal</code></td>
+            <td>Client do Prisma desatualizado e/ou migrations não aplicadas depois de puxar a Fase 2. Rodar <code>npx prisma generate</code> e <code>npx prisma migrate deploy</code> — então o seed passa.</td>
+          </tr>
+          <tr>
             <td class="tight"><code>npm install</code> falha com erro de cipher/TLS</td>
             <td>Já aconteceu nesta máquina: a conexão corrompe tarballs grandes. Repetir costuma passar.</td>
           </tr>
@@ -780,12 +789,14 @@ npm run lint</pre>
     <div class="sec-head"><span class="sec-num">01</span><h2>Modelo de dados</h2></div>
 
     <p class="lead">
-      Nove tabelas, quatro migrations. O multi-tenant é feito por coluna:
+      Dez tabelas, seis migrations. O multi-tenant é feito por coluna:
       <code>companyId</code> em <strong>User</strong>, <strong>Client</strong>,
       <strong>Expense</strong> e <strong>Process</strong>. Duas coisas ficam de fora dessa
       árvore de propósito: os catálogos de status e tipo, que são globais e compartilhados
       por todos os escritórios, e o <strong>PlatformAdmin</strong>, que é o dono da
-      plataforma e não pertence a empresa nenhuma.
+      plataforma e não pertence a empresa nenhuma. A décima tabela é a mais nova:
+      <strong>ProcessStatusHistory</strong>, o livro de registro que ganha uma linha a cada
+      mudança de status e nunca sobrescreve.
     </p>
 
     <figure>
@@ -867,14 +878,16 @@ npm run lint</pre>
           <text class="fld" x="340" y="250.5">active</text>
 
           <!-- ---- Expense ---- -->
-          <rect class="box soon" x="330" y="280" width="170" height="97"/>
+          <rect class="box" x="330" y="280" width="170" height="112"/>
+          <rect class="bar" x="330.5" y="280.5" width="169" height="21.5"/>
           <line class="div" x1="330" y1="302" x2="500" y2="302"/>
           <text class="tname" x="340" y="296">Expense</text>
-          <text class="tag" x="490" y="296" text-anchor="end">sem módulo</text>
+          <text class="tag" x="490" y="296" text-anchor="end">financeiro</text>
           <text class="fld" x="340" y="322.5">id</text>            <text class="tag" x="490" y="322.5" text-anchor="end">PK</text>
-          <text class="fld" x="340" y="337.5">name</text>
-          <text class="fld" x="340" y="352.5">amount</text>        <text class="tag" x="490" y="352.5" text-anchor="end">dec 12,2</text>
-          <text class="fld" x="340" y="367.5">createdAt</text>
+          <text class="fld" x="340" y="337.5">name · amount</text> <text class="tag" x="490" y="337.5" text-anchor="end">dec 12,2</text>
+          <text class="fld" x="340" y="352.5">category</text>      <text class="tag" x="490" y="352.5" text-anchor="end">enum</text>
+          <text class="fld" x="340" y="367.5">date</text>          <text class="tag" x="490" y="367.5" text-anchor="end">@db.Date</text>
+          <text class="fld" x="340" y="382.5">createdAt</text>
 
           <!-- ---- Process ---- -->
           <rect class="box" x="580" y="120" width="170" height="217"/>
@@ -899,8 +912,8 @@ npm run lint</pre>
           <rect class="bar" x="850.5" y="40.5" width="169" height="21.5"/>
           <line class="div" x1="850" y1="62" x2="1020" y2="62"/>
           <text class="tname" x="860" y="56">ProcessStatus</text>
-          <text class="fld" x="860" y="82.5">id · description</text>
-          <text class="tag" x="1010" y="82.5" text-anchor="end">13 seed</text>
+          <text class="fld" x="860" y="82.5">id · description · isFinal</text>
+          <text class="tag" x="1010" y="82.5" text-anchor="end">13 seed · 5 finais</text>
 
           <!-- ---- ProcessType ---- -->
           <rect class="box" x="850" y="132" width="170" height="52"/>
@@ -944,12 +957,15 @@ npm run lint</pre>
         Toda seta aponta para a tabela referenciada. <strong>PlatformAdmin</strong> aparece
         solto porque é isso que ele é: não tem <code>companyId</code>, não tem relação com
         <code>Company</code>, e nenhum registro de <code>User</code> pode se tornar um.
-        Sobraram duas caixas tracejadas: <strong>Expense</strong>, que não tem módulo nenhum,
-        e <strong>ProcessSubtype</strong>, que só é lida através de
+        Sobrou uma caixa tracejada: <strong>ProcessSubtype</strong>, que só é lida através de
         <code>GET /process-type/:id/subtypes</code> — não há CRUD para ela.
-        Note também o que não está desenhado: nenhuma FK liga <strong>Expense</strong> a
-        <strong>Process</strong> ou a <strong>Client</strong>, então uma despesa ainda não
-        pertence a um processo.
+        Note também o que não está desenhado: <strong>Expense</strong> já tem módulo (o
+        financeiro), mas de propósito nenhuma FK a liga a <strong>Process</strong> ou
+        <strong>Client</strong> — a despesa é custo do escritório, não do caso (decisão da
+        Fase 3). Fora do diagrama fica a décima tabela,
+        <strong>ProcessStatusHistory</strong> — ela referencia <code>Process</code>,
+        <code>ProcessStatus</code> e <code>User</code> (quem mudou), e é escrita em transação
+        junto com cada troca de status.
       </figcaption>
     </figure>
 
@@ -983,7 +999,17 @@ npm run lint</pre>
           <tr>
             <td class="tight"><code>subtypeId Int?</code></td>
             <td class="tight">Process</td>
-            <td>Subtipo entrou como FK opcional (migration <code>add_process_subtype_fk</code>). O combo tipo → subtipo já tem endpoint de leitura.</td>
+            <td>Subtipo entrou como FK opcional (migration <code>add_process_subtype_fk</code>). O combo dependente tipo → subtipo já está no formulário da tela de processos.</td>
+          </tr>
+          <tr>
+            <td class="tight"><code>isFinal</code></td>
+            <td class="tight">ProcessStatus</td>
+            <td>Flag nova (migration <code>process_status_history_and_final_flag</code>). Marca os 5 status que encerram o processo — e é só neles que o <code>totalAmount</code> destrava para edição manual.</td>
+          </tr>
+          <tr>
+            <td class="tight"><code>totalAmount @default(0)</code></td>
+            <td class="tight">Process</td>
+            <td>Derivado de <code>fixedAmount</code> + <code>expectedAmount</code> enquanto o processo corre; preservado como valor manual depois que ele é encerrado. Não é mais um número solto.</td>
           </tr>
           <tr>
             <td class="tight"><code>onDelete: Restrict</code></td>
@@ -1015,10 +1041,10 @@ npm run lint</pre>
     <div class="sec-head"><span class="sec-num">02</span><h2>Mapa de funcionalidades</h2></div>
 
     <p class="lead">
-      Dez domínios, lidos de duas pontas: o módulo no backend e a tela no frontend. O padrão
-      que importa aqui é a coluna do meio — quatro domínios com API pronta e nenhuma
-      interface. O maior deles é <strong>processos</strong>: o núcleo do produto já responde
-      na API e não tem por onde ser usado.
+      Dez domínios, lidos de duas pontas: o módulo no backend e a tela no frontend. O que
+      mudou nesta fase é a linha de <strong>processos</strong> — o núcleo do produto —, que
+      saiu da coluna do meio ("só API") e passou a ser ponta a ponta. Sobram na coluna do meio
+      os três catálogos de processo, que têm API mas nenhuma tela própria.
     </p>
 
     <div class="scroller">
@@ -1053,9 +1079,9 @@ npm run lint</pre>
           </tr>
           <tr>
             <td class="tight"><strong>Processos</strong> <span class="chip c-acc">núcleo</span></td>
-            <td><code>process/</code> — CRUD escopado, valida cliente/tipo/status/subtipo, código único</td>
-            <td>rota <code>/processos</code> devolve “Módulo em construção”</td>
-            <td><span class="chip c-wip">só API</span></td>
+            <td><code>process/</code> — CRUD escopado e paginado, troca de status com histórico, valores derivados, valida cliente/tipo/status/subtipo</td>
+            <td><code>ProcessesPage</code> (cartões, busca, filtros, paginação) + <code>ProcessDetailPage</code> (valores e linha do tempo) + modais de formulário e de troca de status</td>
+            <td><span class="chip c-ok">ponta a ponta</span></td>
           </tr>
           <tr>
             <td class="tight">Status de processo</td>
@@ -1077,9 +1103,9 @@ npm run lint</pre>
           </tr>
           <tr>
             <td class="tight">Financeiro / Despesas</td>
-            <td>tabela <code>Expense</code> criada, nenhum módulo</td>
-            <td>rota <code>/financeiro</code> em construção</td>
-            <td><span class="chip c-todo">não iniciado</span></td>
+            <td><code>expense/</code> — CRUD escopado, categorias (enum), filtro por período, <code>summary</code>; exclusivo de ADMIN/FINANCEIRO</td>
+            <td><code>FinanceExpensesPage</code> — tabela, busca, filtros (categoria e período), faixa de total e modal de lançamento</td>
+            <td><span class="chip c-ok">ponta a ponta</span></td>
           </tr>
           <tr>
             <td class="tight">Dashboard / KPIs</td>
@@ -1099,11 +1125,11 @@ npm run lint</pre>
           <tr><td class="tight">Swagger em <code>/api/docs</code></td><td>Pronto, com <code>addBearerAuth()</code> e descrições em todas as rotas.</td></tr>
           <tr><td class="tight">ValidationPipe global</td><td>Pronto — <code>whitelist</code>, <code>forbidNonWhitelisted</code> e <code>transform</code> ligados.</td></tr>
           <tr><td class="tight">Seed do Prisma</td><td>Catálogos + administrador da plataforma (controlado por <code>PLATFORM_ADMIN_PASSWORD</code>). Idempotente, e redefine a senha do root quando rodado de novo.</td></tr>
-          <tr><td class="tight">Testes</td><td><strong>37 testes unitários</strong> (escopo de tenant, guards de escopo, registro, login de empresa inativa, paginação e busca de clientes) + <strong>e2e</strong> com 26 casos, que precisa do Postgres.</td></tr>
+          <tr><td class="tight">Testes</td><td><strong>62 testes unitários</strong> (escopo de tenant, guards de escopo, paginação e busca de clientes, 17 do serviço de processos e 8 do de despesas — isolamento, filtros, agregação do summary) + <strong>e2e</strong> com ~37 casos (26 de isolamento + 5 de processos + 6 de despesas, incluindo o 403 do OPERACIONAL no financeiro), que precisa do Postgres.</td></tr>
           <tr><td class="tight">docker-compose</td><td>Postgres + backend. Falta o frontend e faltam as env vars de JWT no serviço do backend — o container do backend não sobe.</td></tr>
           <tr><td class="tight">Proxy de dev</td><td>Vite reescreve <code>/api</code> → <code>localhost:3000</code>. Funciona; esconde a falta de CORS.</td></tr>
           <tr><td class="tight">Design tokens / UI kit</td><td>CSS próprio, sem biblioteca. Primitivos em <code>components/ui</code>: Button, Input, Badge, Modal, Icon, ErrorBoundary.</td></tr>
-          <tr><td class="tight">Paginação e busca</td><td>Clientes tem, nas duas pontas, com o envelope <code>{ items, total, page, pageSize, pages }</code> e a base em <code>common/</code>. Usuários e processos ainda devolvem a lista inteira.</td></tr>
+          <tr><td class="tight">Paginação e busca</td><td>Clientes e processos têm, nas duas pontas, com o envelope <code>{ items, total, page, pageSize, pages }</code> e a base em <code>common/</code>. Processos reusou essa base e ainda ganhou filtros por status, tipo e cliente. Só <strong>usuários</strong> ainda devolve a lista inteira.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1114,7 +1140,7 @@ npm run lint</pre>
     <div class="sec-head"><span class="sec-num">03</span><h2>API implementada</h2></div>
 
     <p class="lead">
-      36 endpoints em 7 controllers. A coluna <strong>proteção</strong> agora tem dois eixos:
+      43 endpoints em 8 controllers. A coluna <strong>proteção</strong> agora tem dois eixos:
       o <em>escopo</em> da sessão (escritório ou plataforma) e, dentro de um escritório, o
       <em>papel</em>. <span class="m">tenant</span> quer dizer que a rota exige sessão de
       escritório e lê o <code>companyId</code> do token;
@@ -1156,10 +1182,11 @@ npm run lint</pre>
           <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/clients/:id/activate</code></td><td class="tight">ADMIN</td><td>Reativa.</td></tr>
 
           <tr class="group"><th colspan="4">processes — sessão de escritório</th></tr>
-          <tr><td class="tight"><span class="meth post">POST</span></td><td class="tight"><code>/processes</code></td><td class="tight">ADMIN · OPERACIONAL</td><td>Valida que o cliente é da empresa e que tipo, status e subtipo existem. Código único global.</td></tr>
-          <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/processes</code></td><td class="tight">tenant</td><td>Escopado por empresa. Sem filtro, sem paginação.</td></tr>
-          <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/processes/:id</code></td><td class="tight">tenant</td><td>Processo de outra empresa: 404.</td></tr>
-          <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/processes/:id</code></td><td class="tight">ADMIN · OPERACIONAL</td><td>Revalida as FKs quando elas mudam.</td></tr>
+          <tr><td class="tight"><span class="meth post">POST</span></td><td class="tight"><code>/processes</code></td><td class="tight">ADMIN · OPERACIONAL</td><td>Valida que o cliente é da empresa e que tipo, status e subtipo existem. Código único global. Em transação, cria o processo e a primeira linha do histórico (“Processo criado”). O <code>totalAmount</code> já nasce derivado.</td></tr>
+          <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/processes</code></td><td class="tight">tenant</td><td>Escopado por empresa, paginado (<code>?page</code>, <code>?pageSize</code>), ordenado do mais novo, com <code>?search</code> por nome ou número e filtros <code>?statusId</code>, <code>?typeId</code>, <code>?clientId</code>.</td></tr>
+          <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/processes/:id</code></td><td class="tight">tenant</td><td>Traz o histórico de status (mais recente primeiro, com quem mudou). Processo de outra empresa: 404.</td></tr>
+          <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/processes/:id</code></td><td class="tight">ADMIN · OPERACIONAL</td><td>Revalida as FKs quando elas mudam. Não troca o status. Enquanto o processo não está encerrado, recalcula o <code>totalAmount</code> (Entrada + Esperado).</td></tr>
+          <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/processes/:id/status</code></td><td class="tight">ADMIN · OPERACIONAL</td><td>Rota dedicada da troca de status: grava a nova linha no histórico. Se o novo status for final, aceita um <code>totalAmount</code> manual — e só registra “ajustado” quando ele diverge de fato do previsto.</td></tr>
           <tr><td class="tight"><span class="meth delete">DELETE</span></td><td class="tight"><code>/processes/:id</code></td><td class="tight">ADMIN</td><td>Delete <strong>físico</strong> — <code>Process</code> não tem flag <code>active</code>.</td></tr>
 
           <tr class="group"><th colspan="4">process-status</th></tr>
@@ -1176,13 +1203,21 @@ npm run lint</pre>
           <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/process-type/:id/subtypes</code></td><td class="tight">JWT</td><td>É o combo dependente tipo → subtipo do formulário de processo.</td></tr>
           <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/process-type/:id</code></td><td class="tight">ADMIN</td><td>—</td></tr>
           <tr><td class="tight"><span class="meth delete">DELETE</span></td><td class="tight"><code>/process-type/:id</code></td><td class="tight">ADMIN</td><td>Mesmo problema de FK do delete de status.</td></tr>
+
+          <tr class="group"><th colspan="4">expenses — financeiro, só ADMIN e FINANCEIRO</th></tr>
+          <tr><td class="tight"><span class="meth post">POST</span></td><td class="tight"><code>/expenses</code></td><td class="tight">ADMIN · FINANCEIRO</td><td>Lança a despesa. <code>companyId</code> do token. Valida nome, valor ≥ 0, categoria (enum) e data (sem data, hoje).</td></tr>
+          <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/expenses</code></td><td class="tight">ADMIN · FINANCEIRO</td><td>Escopado por empresa, paginado, ordenado por data desc. Filtros <code>?search</code> (descrição), <code>?category</code>, <code>?from</code>/<code>?to</code> (intervalo).</td></tr>
+          <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/expenses/summary</code></td><td class="tight">ADMIN · FINANCEIRO</td><td>Total e quebra por categoria dos mesmos filtros, sem paginar — alimenta a faixa de “total do período”.</td></tr>
+          <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/expenses/:id</code></td><td class="tight">ADMIN · FINANCEIRO</td><td>Despesa de outra empresa: 404.</td></tr>
+          <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/expenses/:id</code></td><td class="tight">ADMIN · FINANCEIRO</td><td>Edita nome, valor, categoria e data.</td></tr>
+          <tr><td class="tight"><span class="meth delete">DELETE</span></td><td class="tight"><code>/expenses/:id</code></td><td class="tight">ADMIN · FINANCEIRO</td><td>Delete <strong>físico</strong>. <code>204</code>. <code>OPERACIONAL</code> leva 403 em qualquer rota deste grupo.</td></tr>
         </tbody>
       </table>
     </div>
 
     <p class="note">
-      Clientes já é paginado e ordenado. <code>GET /processes</code> e <code>GET /users</code> ainda devolvem a lista inteira — com um escritório de
-      verdade, isso volta tudo em cada request. A base de paginação em <code>common/</code> foi escrita para ser reusada por eles.
+      Clientes e processos já são paginados e ordenados, reusando a base em <code>common/</code>. Sobrou <code>GET /users</code>, que ainda
+      devolve a lista inteira — com um escritório de verdade, isso volta tudo em cada request. A mesma base resolve.
     </p>
   </section>
 
@@ -1196,23 +1231,22 @@ npm run lint</pre>
         <code>companyId</code> hoje vem sempre do token; <code>company</code> é exclusivo da
         plataforma; <code>GET /clients</code> e <code>GET /users</code> filtram por empresa; e
         <code>PATCH /users/:id</code> responde 404 para usuário de outro escritório. Há um
-        e2e de 26 casos e 37 testes unitários cobrindo exatamente essa classe de bug.
-        Nada do que sobrou abaixo é vazamento entre escritórios.
+        e2e de isolamento com 26 casos — e a Fase 2 somou um e2e de processos — além dos 54
+        testes unitários. Nada do que sobrou abaixo é vazamento entre escritórios.
       </p>
     </div>
 
     <ol class="risks">
             <li class="sev-medio">
-        <h4>Processos e usuários ainda sem paginação <span class="chip c-todo">médio</span></h4>
+        <h4>Usuários ainda sem paginação <span class="chip c-todo">médio</span></h4>
         <p>
-          Clientes foi resolvido na Fase 1 e deixou a base pronta em
+          Clientes (Fase 1) e processos (Fase 2) já reusam a base em
           <code>common/</code> — <code>PaginationQueryDto</code> e o envelope
-          <code>Paginated</code>. <code>GET /processes</code> e <code>GET /users</code>
-          continuam devolvendo a lista inteira, sem <code>skip</code>/<code>take</code>,
-          ordenação ou busca. Com um escritório de verdade, processos é justamente a lista
-          que mais cresce.
+          <code>Paginated</code>. Sobrou <code>GET /users</code>, que ainda devolve a lista
+          inteira, sem <code>skip</code>/<code>take</code>, ordenação ou busca. É o que falta
+          para fechar o padrão em todas as listas.
         </p>
-        <span class="where">process.service.ts:56 · users.service.ts:67</span>
+        <span class="where">users.service.ts:67</span>
       </li>
 
       <li class="sev-alto">
@@ -1258,17 +1292,6 @@ npm run lint</pre>
       </li>
 
       <li class="sev-medio">
-        <h4><code>totalAmount</code> continua sem regra <span class="chip c-todo">médio</span></h4>
-        <p>
-          O módulo de processos foi escrito, mas os três campos de dinheiro seguem sem
-          fórmula: o service grava <code>fixedAmount</code>, <code>expectedAmount</code> e
-          <code>totalAmount</code> exatamente como vêm no DTO, sem calcular nem reconciliar
-          nada. Hoje são três números soltos que o cliente da API precisa manter coerentes.
-        </p>
-        <span class="where">backend/src/process/process.service.ts:48</span>
-      </li>
-
-      <li class="sev-medio">
         <h4>Número de processo é único no SaaS inteiro <span class="chip c-todo">médio</span></h4>
         <p>
           <code>code @unique</code> não inclui <code>companyId</code>, e
@@ -1280,25 +1303,15 @@ npm run lint</pre>
       </li>
 
       <li class="sev-medio">
-        <h4>Não existe auditoria <span class="chip c-todo">médio</span></h4>
+        <h4>Auditoria só existe para o status do processo <span class="chip c-todo">médio</span></h4>
         <p>
-          Nada registra quem criou ou alterou o quê: nem <code>createdBy</code> nas tabelas,
-          nem log de eventos. Num sistema onde a plataforma pode agir dentro de qualquer
-          escritório, é o registro que explicaria uma alteração inesperada depois.
+          A Fase 2 trouxe <code>ProcessStatusHistory</code>, que registra quem mudou o status,
+          quando e com que observação — a primeira trilha de auditoria do sistema. Fora disso,
+          nada registra quem criou ou alterou o quê: não há <code>createdBy</code> nas demais
+          tabelas nem log de eventos. Num sistema onde a plataforma pode agir dentro de
+          qualquer escritório, é o registro que explicaria uma alteração inesperada depois.
         </p>
-        <span class="where">todo o backend</span>
-      </li>
-
-      <li class="sev-medio">
-        <h4><code>backend/CLAUDE.md</code> está meio atualizado <span class="chip c-todo">médio</span></h4>
-        <p>
-          As seções de autenticação, escopos e RBAC foram reescritas na Fase 0. O resto do
-          arquivo — a parte de <code>users/</code> e a de Prisma — ainda documenta o schema
-          antigo em português (<code>Usuario</code>, <code>UsuSenhaHash</code>,
-          <code>findAllByEmpresa</code>), que deixou de existir no commit
-          <code>e5bc02d</code>.
-        </p>
-        <span class="where">backend/CLAUDE.md</span>
+        <span class="where">restante do backend</span>
       </li>
 
             <li class="sev-medio">
@@ -1319,8 +1332,9 @@ npm run lint</pre>
     <div class="sec-head"><span class="sec-num">05</span><h2>Rota para terminar</h2></div>
 
     <p class="lead">
-      As fases estão em ordem de dependência, não de preferência. A Fase 0 saiu; a Fase 1
-      está quase. As estimativas assumem você trabalhando sozinha nesse ritmo.
+      As fases estão em ordem de dependência, não de preferência. As Fases 0, 1, 2 e 3 saíram —
+      a fronteira do tenant, clientes, o núcleo de processos e o financeiro. Sobrou o dashboard.
+      As estimativas assumem você trabalhando sozinha nesse ritmo.
     </p>
 
     <div class="phases">
@@ -1361,15 +1375,15 @@ npm run lint</pre>
         <header>
           <span class="pn">Fase 2</span>
           <h3>Processos — a tela do núcleo</h3>
-          <span class="est">4–6 dias</span>
+          <span class="est"><span class="chip c-ok">concluída</span></span>
         </header>
         <ul>
-          <li><b>Decidir a regra de valores antes</b> (seção 06): hoje o service grava os três campos sem calcular nada, e a tela vai expor essa indefinição.</li>
-          <li><b><code>ProcessesPage</code>:</b> tabela com filtros por status, tipo e cliente, badge de status, formulário com o combo dependente tipo → subtipo (o endpoint já existe) e valores em BRL — lembrar que <code>Decimal</code> chega como string.</li>
-          <li><b>Filtros e paginação no <code>GET /processes</code></b>, que hoje devolve a lista inteira sem nenhum parâmetro.</li>
-          <li><b>Histórico de status:</b> hoje só existe o status atual. Uma tabela <code>ProcessStatusHistory</code> (<code>processId</code>, <code>statusId</code>, <code>userId</code>, <code>changedAt</code>) é o que transforma a listagem num acompanhamento de verdade.</li>
-          <li><b>Trocar o delete físico por inativação</b> (flag <code>active</code> em <code>Process</code>), se processo apagado por engano for um risco real.</li>
-          <li><b>CRUD de subtipo</b>, se os escritórios precisarem criar os seus — hoje só dá para ler.</li>
+          <li><b>Regra de valores decidida e implementada:</b> o <code>totalAmount</code> é derivado de Entrada + Esperado enquanto o processo corre e só destrava para edição manual quando o status é final. A tela mostra os três valores em BRL (<code>Decimal</code> chega como string).</li>
+          <li><b><code>ProcessesPage</code> em cartões:</b> busca por nome ou número, filtros por status, tipo e cliente, badge de status e paginação — reusando a base de <code>common/</code>.</li>
+          <li><b>Filtros e paginação no <code>GET /processes</code></b>, que antes devolvia a lista inteira.</li>
+          <li><b>Histórico de status:</b> a tabela <code>ProcessStatusHistory</code> nasceu (<code>processId</code>, <code>statusId</code>, <code>userId</code>, <code>changedAt</code>, <code>note</code>), a rota <code>PATCH /processes/:id/status</code> grava cada troca em transação, e a <code>ProcessDetailPage</code> mostra a linha do tempo.</li>
+          <li><b>Formulário</b> de criar/editar com o combo dependente tipo → subtipo.</li>
+          <li><b>Sobrou:</b> trocar o delete físico por inativação e o CRUD de subtipo — ambos ficaram de fora (ver seção 04 e as decisões).</li>
         </ul>
       </div>
 
@@ -1377,14 +1391,14 @@ npm run lint</pre>
         <header>
           <span class="pn">Fase 3</span>
           <h3>Financeiro</h3>
-          <span class="est">3–5 dias</span>
+          <span class="est"><span class="chip c-ok">concluída</span></span>
         </header>
         <ul>
-          <li><b>Resolver o vínculo da despesa</b> (seção 06) — provavelmente uma migration adicionando <code>processId</code> opcional em <code>Expense</code>.</li>
-          <li><b><code>ExpenseModule</code>:</b> CRUD escopado por empresa, filtro por período, soma por processo.</li>
-          <li><b>Pôr a role <code>FINANCEIRO</code> para trabalhar</b> — é o primeiro módulo em que ela faz sentido; hoje ela não gate nada.</li>
-          <li><b><code>FinancePage</code>:</b> lançamentos, total do período, despesa por processo.</li>
-          <li><b>Receita:</b> o schema só modela despesa. Se o escritório precisa acompanhar honorários recebidos, falta uma tabela — decidir aqui.</li>
+          <li><b>Vínculo da despesa decidido:</b> é custo do escritório, sem FK a processo ou cliente. <code>Expense</code> ganhou só <code>category</code> (enum de 9) e <code>date</code>.</li>
+          <li><b><code>ExpenseModule</code>:</b> CRUD escopado por empresa, filtro por categoria e por período, e <code>GET /expenses/summary</code> (total + quebra por categoria).</li>
+          <li><b>Role <code>FINANCEIRO</code> trabalhando:</b> <code>/expenses</code> exige <code>@Roles(ADMIN, FINANCEIRO)</code> na classe; <code>OPERACIONAL</code> leva 403 e some o item do menu.</li>
+          <li><b><code>FinanceExpensesPage</code>:</b> lançamentos em tabela, busca, filtros e a faixa de total do período.</li>
+          <li><b>Sobrou:</b> receita / honorários recebidos — o schema só modela despesa; a tabela nova fica para uma fase futura.</li>
         </ul>
       </div>
 
@@ -1424,45 +1438,35 @@ npm run lint</pre>
     <div class="sec-head"><span class="sec-num">06</span><h2>Decisões em aberto</h2></div>
 
     <p class="lead">
-      Escolhas de produto que o código ainda não tomou. Uma saiu desde o levantamento
-      original: <strong>subtipo entrou</strong> no schema, como FK opcional em
-      <code>Process</code>. As outras continuam, e cada uma bloqueia uma fase específica.
+      Escolhas de produto que o código ainda não tomou. Três já saíram: <strong>subtipo
+      entrou</strong> no schema (FK opcional em <code>Process</code>); a <strong>regra de
+      valores foi decidida</strong> na Fase 2; e o <strong>vínculo da despesa</strong> foi
+      resolvido na Fase 3 — é custo do escritório, sem FK a processo ou cliente, organizada
+      por categoria. As de baixo continuam.
     </p>
 
     <ol class="risks">
-      <li class="sev-alto">
-        <h4>Como somar o valor do processo? <span class="chip c-acc">bloqueia a fase 2</span></h4>
+      <li class="sev-medio">
+        <h4>Receita: o escritório acompanha o que entra? <span class="chip c-todo">abre a próxima fase do financeiro</span></h4>
         <p>
-          Três colunas de dinheiro sem regra: <code>fixedAmount</code> (honorário
-          contratado?), <code>expectedAmount</code> (êxito esperado?) e
-          <code>totalAmount</code> (soma? recebido?). O módulo foi escrito sem decidir — o
-          service só persiste o que vem no DTO. Precisa de uma frase definindo cada um e de
-          onde o total sai: calculado na leitura ou materializado na escrita. A tela de
-          processos vai ter que mostrar os três.
+          O schema só modela <strong>despesa</strong>. Honorários recebidos — o dinheiro que
+          entra — não têm tabela. A Fase 3 foi deliberadamente só de saída; se o escritório
+          precisa de fluxo de caixa (entradas × saídas, resultado do mês), falta uma tabela de
+          receita e, aí sim, talvez o vínculo com o processo que gerou o honorário.
         </p>
       </li>
 
       <li class="sev-alto">
-        <h4>A despesa pertence a quê? <span class="chip c-acc">bloqueia a fase 3</span></h4>
+        <h4>Catálogo global ou por escritório? <span class="chip c-todo">segue em aberto</span></h4>
         <p>
-          <code>Expense</code> tem <code>companyId</code> e nada mais: nenhuma FK para
-          <code>Process</code> ou <code>Client</code>. Então hoje é custo fixo do escritório,
-          não custo do caso. Se a ideia é saber quanto custou cada processo, falta
-          <code>processId</code> — e provavelmente uma categoria (custas, perícia,
-          diligência).
-        </p>
-      </li>
-
-      <li class="sev-alto">
-        <h4>Catálogo global ou por escritório? <span class="chip c-acc">bloqueia a fase 2</span></h4>
-        <p>
-          <code>ProcessStatus</code> e <code>ProcessType</code> não têm
-          <code>companyId</code>, e o <code>description</code> / <code>name</code> é único
-          global. Consequência: um ADMIN que renomeia um status muda para todos os
-          escritórios, e ninguém pode ter um status próprio. Manter global e tirar a escrita
-          dos ADMINs de escritório, ou adicionar <code>companyId</code> opcional (nulo =
-          padrão do sistema) — as duas são defensáveis, mas são caminhos diferentes. A
-          decisão também resolve o furo de leitura da seção 04.
+          A Fase 2 embarcou com o catálogo global: <code>ProcessStatus</code> e
+          <code>ProcessType</code> não têm <code>companyId</code>, e o
+          <code>description</code> / <code>name</code> é único global. Consequência: um ADMIN
+          que renomeia um status muda para todos os escritórios, e ninguém pode ter um status
+          próprio. Manter global e tirar a escrita dos ADMINs de escritório, ou adicionar
+          <code>companyId</code> opcional (nulo = padrão do sistema) — as duas são defensáveis,
+          mas são caminhos diferentes, e a tela de processos já consome esse catálogo como ele
+          está.
         </p>
       </li>
 
@@ -1500,10 +1504,10 @@ npm run lint</pre>
   </section>
 
   <footer>
-    <span>Levantado a partir do código em feat/fase-0-fronteira-tenant, depois da Fase 1</span>
-    <span>backend: 8 módulos · 36 endpoints</span>
-    <span>frontend: 5 telas · 6 primitivos de UI</span>
-    <span>banco: 9 tabelas · 4 migrations · 37 testes + e2e</span>
+    <span>Levantado a partir do código em feat/fase-3-financeiro, depois da Fase 3</span>
+    <span>backend: 9 módulos · 43 endpoints</span>
+    <span>frontend: 7 telas · 6 primitivos de UI</span>
+    <span>banco: 10 tabelas · 6 migrations · 62 testes + e2e</span>
   </footer>
 
 </div>
