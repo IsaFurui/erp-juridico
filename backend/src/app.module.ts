@@ -11,6 +11,7 @@ import { ProcessStatusModule } from './process-status/process-status.module';
 import { ProcessTypeModule } from './process-type/process-type.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 import { ProcessModule } from './process/process.module';
+import { ExpenseModule } from './expense/expense.module';
 
 @Module({
     imports: [
@@ -24,6 +25,7 @@ import { ProcessModule } from './process/process.module';
         ProcessTypeModule,
         PlatformAdminModule,
         ProcessModule,
+        ExpenseModule,
     ],
     controllers: [AppController],
     providers: [AppService],

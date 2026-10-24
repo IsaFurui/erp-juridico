@@ -25,11 +25,13 @@ src/
 ├── company/           # Gestão de empresas (CRUD + desativação)
 ├── clients/           # Gestão de clientes (CRUD + desativação)
 ├── process-status/    # CRUD de status de processo
-└── process-type/      # CRUD de tipos de processo
+├── process-type/      # CRUD de tipos de processo + subtipos
+├── process/           # Entidade central Process (CRUD, histórico de status, valores)
+└── expense/           # Financeiro — despesas do escritório (ADMIN + FINANCEIRO)
 ```
 
-> Ainda **não implementados** (models já existem no schema): `process/`
-> (entidade central `Process` + `ProcessSubtype`) e `expense/` (financeiro).
+> Todos os models do schema já têm módulo. O único sem CRUD próprio é
+> `ProcessSubtype`, lido via `GET /process-type/:id/subtypes`.
 
 ---
 
@@ -138,8 +140,12 @@ estreitado (e repetem a checagem, caso o guard tenha sido esquecido).
 | Role          | Acesso                                    |
 |---------------|-------------------------------------------|
 | `ADMIN`       | Usuários e clientes do próprio escritório |
-| `FINANCEIRO`  | Módulo financeiro (despesas)              |
+| `FINANCEIRO`  | Módulo financeiro (despesas) — junto com `ADMIN` |
 | `OPERACIONAL` | Módulo de processos e clientes            |
+
+> Desde a Fase 3, `FINANCEIRO` **gate de fato** o módulo `expense/`: todas as
+> rotas de `/expenses` exigem `@Roles(ADMIN, FINANCEIRO)` na classe, então
+> `OPERACIONAL` leva 403. Antes essa role não protegia nada.
 
 ### Fronteira do tenant — regra que vale para todo módulo novo
 
@@ -205,8 +211,13 @@ O login é único **por empresa** (`@@unique([companyId, login])`), permitindo o
 
 ### Models do schema
 
-`Company`, `User`, `Client`, `Expense`, `ProcessStatus`, `ProcessType`, `ProcessSubtype`, `Process`.
-Enum `UserRole` (`ADMIN` / `FINANCEIRO` / `OPERACIONAL`).
+`Company`, `User`, `Client`, `Expense`, `ProcessStatus`, `ProcessType`, `ProcessSubtype`, `Process`, `ProcessStatusHistory`.
+Enums `UserRole` (`ADMIN` / `FINANCEIRO` / `OPERACIONAL`) e `ExpenseCategory`
+(9 categorias de despesa; o rótulo legível vive no frontend).
+
+> `Expense` tem `category` (enum) e `date` (`@db.Date`), além de `name`, `amount`
+> (`Decimal(12,2)`) e `companyId`. É escopada só por empresa — sem vínculo a
+> processo ou cliente (decisão de produto da Fase 3).
 
 ### Comandos úteis
 
