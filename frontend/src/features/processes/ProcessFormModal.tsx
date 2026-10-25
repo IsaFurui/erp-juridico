@@ -4,19 +4,19 @@ import Input from '../../components/ui/Input'
 import Modal from '../../components/ui/Modal'
 import { parseBRLInput } from '../../lib/money'
 import type {
-  Client,
   ProcessDetail,
   ProcessStatus,
   ProcessSubtype,
   ProcessType,
 } from '../../lib/api'
-import { listClients } from '../clients/clients.api'
 import {
   createProcess,
   listProcessTypes,
   listSubtypes,
   updateProcess,
 } from './processes.api'
+import ClientPicker from './ClientPicker'
+import ClientDrawer from './ClientDrawer'
 import './ProcessFormModal.css'
 
 interface ProcessFormModalProps {
@@ -60,21 +60,23 @@ function ProcessFormModal({
     () => initial?.expectedAmount ?? '',
   )
 
-  const [clients, setClients] = useState<Client[]>([])
+  const [clientName, setClientName] = useState(
+    () => initial?.client.name ?? '',
+  )
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
   const [types, setTypes] = useState<ProcessType[]>([])
   const [subtypes, setSubtypes] = useState<ProcessSubtype[]>([])
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Carrega clientes e tipos uma vez.
+  // Carrega os tipos uma vez. Os clientes vêm por busca no ClientPicker.
   useEffect(() => {
     let cancelled = false
-    Promise.all([listClients({ pageSize: 100 }), listProcessTypes()])
-      .then(([clientsResult, typesResult]) => {
-        if (cancelled) return
-        setClients(clientsResult.items)
-        setTypes(typesResult)
+    listProcessTypes()
+      .then((typesResult) => {
+        if (!cancelled) setTypes(typesResult)
       })
       .catch(() => {
         if (!cancelled) setError('Não foi possível carregar os cadastros.')
@@ -162,6 +164,7 @@ function ProcessFormModal({
   }
 
   return (
+    <>
     <Modal
       open={opened}
       title={isEditing ? 'Editar processo' : 'Novo processo'}
@@ -184,24 +187,16 @@ function ProcessFormModal({
         />
 
         <div className="ui-field">
-          <label className="ui-field-label" htmlFor="process-client">
-            Cliente
-          </label>
-          <select
-            id="process-client"
-            className="ui-input"
+          <label className="ui-field-label">Cliente</label>
+          <ClientPicker
             value={clientId}
-            onChange={(e) =>
-              setClientId(e.target.value === '' ? '' : Number(e.target.value))
-            }
-          >
-            <option value="">Selecione…</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            selectedName={clientName}
+            onSelect={(c) => {
+              setClientId(c.id)
+              setClientName(c.name)
+            }}
+            onCreateNew={() => setDrawerOpen(true)}
+          />
         </div>
 
         <div className="process-form-row">
@@ -293,6 +288,17 @@ function ProcessFormModal({
         </div>
       </form>
     </Modal>
+
+    <ClientDrawer
+      open={drawerOpen}
+      onClose={() => setDrawerOpen(false)}
+      onCreated={(c) => {
+        setClientId(c.id)
+        setClientName(c.name)
+        setDrawerOpen(false)
+      }}
+    />
+    </>
   )
 }
 

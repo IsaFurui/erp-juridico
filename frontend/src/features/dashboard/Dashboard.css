@@ -1,0 +1,258 @@
+/* ---------- KPIs ---------- */
+.dash-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.dash-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: dash-rise 0.45s ease both;
+}
+
+.dash-kpi:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.dash-kpi:nth-child(3) {
+  animation-delay: 0.12s;
+}
+.dash-kpi:nth-child(4) {
+  animation-delay: 0.18s;
+}
+.dash-kpi:nth-child(5) {
+  animation-delay: 0.24s;
+}
+.dash-kpi:nth-child(6) {
+  animation-delay: 0.3s;
+}
+
+.dash-kpi-label {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.dash-kpi-value {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+.dash-kpi-value.is-accent {
+  color: var(--primary);
+}
+
+/* ---------- colunas ---------- */
+.dash-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 760px) {
+  .dash-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dash-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 14px;
+  color: var(--foreground);
+}
+
+/* ---------- donut ---------- */
+.dash-donut {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.dash-donut-svg {
+  width: 160px;
+  height: 160px;
+  flex: 0 0 auto;
+}
+
+.dash-donut-total {
+  font-size: 26px;
+  font-weight: 700;
+  fill: var(--foreground);
+  animation: dash-fade 0.5s ease 0.35s both;
+}
+
+.dash-donut-cap {
+  font-size: 10px;
+  fill: var(--muted-foreground);
+  animation: dash-fade 0.5s ease 0.4s both;
+}
+
+/* Cada fatia "desenha" de 0 até o seu comprimento, em sequência. */
+.dash-donut-slice {
+  animation: dash-donut-draw 0.75s ease both;
+}
+
+@keyframes dash-donut-draw {
+  from {
+    stroke-dasharray: 0 10000;
+  }
+}
+
+@keyframes dash-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dash-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.dash-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  flex: 1 1 160px;
+}
+
+.dash-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  animation: dash-rise 0.4s ease both;
+}
+
+.dash-legend li:nth-child(2) {
+  animation-delay: 0.08s;
+}
+.dash-legend li:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.dash-legend li:nth-child(4) {
+  animation-delay: 0.24s;
+}
+.dash-legend li:nth-child(5) {
+  animation-delay: 0.32s;
+}
+.dash-legend li:nth-child(6) {
+  animation-delay: 0.4s;
+}
+
+.dash-legend-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.dash-legend-label {
+  color: var(--foreground);
+}
+
+.dash-legend-value {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+
+/* ---------- atividade recente ---------- */
+.dash-activity {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.dash-activity li {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-light, var(--border));
+}
+
+.dash-activity li:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.dash-activity-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dash-activity-proc {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.dash-activity-meta {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+/* ---------- despesas por categoria ---------- */
+.dash-cat {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px 20px;
+}
+
+.dash-cat li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-light, var(--border));
+}
+
+.dash-cat-label {
+  color: var(--muted-foreground);
+}
+
+.dash-cat-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+/* Quem desativa animações no SO não vê nenhuma das entradas acima. */
+@media (prefers-reduced-motion: reduce) {
+  .dash-donut-slice,
+  .dash-donut-total,
+  .dash-donut-cap,
+  .dash-kpi,
+  .dash-legend li {
+    animation: none !important;
+  }
+}
+
+/* ---------- loading ---------- */
+.dash-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}

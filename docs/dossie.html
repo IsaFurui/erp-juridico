@@ -566,12 +566,13 @@
 <div class="wrap">
 
   <header class="masthead">
-    <p class="eyebrow">Dossiê atualizado · 24 out 2026 · branch feat/fase-3-financeiro · pós-Fase 3</p>
+    <p class="eyebrow">Dossiê atualizado · 24 out 2026 · branch feat/fase-4-dashboard · pós-Fase 4</p>
     <h1>Dossiê ERP&nbsp;Jurídico</h1>
     <p class="deck">
       ERP multi-empresa para escritórios de advocacia. A fronteira entre escritórios está
-      fechada e coberta por teste; processos é ponta a ponta; e agora o financeiro também —
-      despesas por categoria, filtro por período e total do período. O que falta é o dashboard.
+      fechada e coberta por teste, e os quatro domínios de produto — clientes, processos,
+      financeiro e, agora, o dashboard — estão ponta a ponta. Resta só o endurecimento para
+      produção.
     </p>
 
     <dl class="ficha">
@@ -579,22 +580,20 @@
       <div><dt>Frontend</dt><dd>React 19 · Vite 8</dd></div>
       <div><dt>Banco</dt><dd>PostgreSQL 16</dd></div>
       <div><dt>Tabelas</dt><dd>10 · 6 migrations</dd></div>
-      <div><dt>Módulos Nest</dt><dd>9</dd></div>
-      <div><dt>Endpoints</dt><dd>43</dd></div>
-      <div><dt>Telas prontas</dt><dd>7 de 9</dd></div>
-      <div><dt>Testes</dt><dd>62 · + e2e</dd></div>
+      <div><dt>Módulos Nest</dt><dd>10</dd></div>
+      <div><dt>Endpoints</dt><dd>44</dd></div>
+      <div><dt>Telas prontas</dt><dd>8 de 9</dd></div>
+      <div><dt>Testes</dt><dd>65 · + e2e</dd></div>
     </dl>
 
     <div class="strip-block">
-      <div class="strip" role="img" aria-label="Dos 10 domínios do sistema: 6 prontos ponta a ponta, 3 só com API, 1 não iniciado.">
-        <span class="s-ok"   style="flex:6" title="Autenticação, Usuários, Empresas, Clientes, Processos, Financeiro"></span>
+      <div class="strip" role="img" aria-label="Dos 10 domínios do sistema: 7 prontos ponta a ponta, 3 só com API, nenhum não iniciado.">
+        <span class="s-ok"   style="flex:7" title="Autenticação, Usuários, Empresas, Clientes, Processos, Financeiro, Dashboard"></span>
         <span class="s-wip"  style="flex:3" title="Status de processo, Tipos de processo, Subtipos"></span>
-        <span class="s-todo" style="flex:1" title="Dashboard"></span>
       </div>
       <div class="strip-key">
-        <span><i style="background:var(--ok)"></i>6 domínios ponta a ponta</span>
+        <span><i style="background:var(--ok)"></i>7 domínios ponta a ponta</span>
         <span><i style="background:var(--wip)"></i>3 só com API, sem tela</span>
-        <span><i style="background:var(--todo-bg);border:1px solid var(--line)"></i>1 não iniciado</span>
       </div>
     </div>
 
@@ -615,16 +614,15 @@
 
     <div class="callout">
       <p>
-        <b>O que mudou desde o levantamento anterior (pós-Fase 2).</b> A Fase 3 entregou o
-        <code>financeiro</code>: a tabela <code>Expense</code>, que existia sem módulo, virou
-        CRUD ponta a ponta — lançamento de despesas com categoria (enum de 9 valores) e data,
-        lista com busca, filtro por categoria e por período, e uma faixa de "total do período"
-        (<code>GET /expenses/summary</code>). E a role <code>FINANCEIRO</code>, que não
-        protegia nada, finalmente trabalha: <code>/expenses</code> é exclusivo de
-        <code>ADMIN</code> e <code>FINANCEIRO</code> — <code>OPERACIONAL</code> leva 403 e nem
-        vê o item no menu. Decisão de produto registrada: a despesa é custo do escritório, sem
-        vínculo a processo ou cliente. Este documento descreve o estado da branch
-        <code>feat/fase-3-financeiro</code>.
+        <b>O que mudou desde o levantamento anterior (pós-Fase 3).</b> A Fase 4 entregou o
+        <code>dashboard</code>: a primeira tela deixou de ser o "em construção" e virou a visão
+        do escritório — cards de KPI (processos em aberto, encerrados e ganho no mês, clientes
+        ativos, valor em curso), um donut de processos por status, atividade recente (as últimas
+        mudanças de status, de quem e quando) e, para quem pode, a despesa do mês. Tudo vem
+        agregado do backend num <code>GET /dashboard</code> só, sem nenhuma migration (os dados
+        já existiam). O bloco financeiro é gated: <code>OPERACIONAL</code> recebe
+        <code>finance: null</code> e a tela esconde esses números. Este documento descreve o
+        estado da branch <code>feat/fase-4-dashboard</code>.
       </p>
     </div>
 
@@ -733,8 +731,8 @@ npm run dev              <span class="c"># http://localhost:5173</span></pre>
 
     <h3>Testes</h3>
     <pre class="sh">cd backend
-npm test                 <span class="c"># 62 testes, não precisa de banco</span>
-npm run test:e2e         <span class="c"># isolamento, processos e despesas — precisa do Postgres de pé</span>
+npm test                 <span class="c"># 65 testes, não precisa de banco</span>
+npm run test:e2e         <span class="c"># isolamento, processos, despesas e dashboard — precisa do Postgres de pé</span>
 
 cd ../frontend
 npx tsc -b               <span class="c"># typecheck</span>
@@ -1109,9 +1107,9 @@ npm run lint</pre>
           </tr>
           <tr>
             <td class="tight">Dashboard / KPIs</td>
-            <td>nenhum endpoint de agregação</td>
-            <td>card de boas-vindas + “KPIs em construção”</td>
-            <td><span class="chip c-todo">não iniciado</span></td>
+            <td><code>dashboard/</code> — <code>GET /dashboard</code> agrega KPIs, processos por status, atividade recente e o financeiro (gated), sem migration</td>
+            <td><code>Dashboard</code> com cards de KPI, donut de status, atividade recente e despesas do mês por categoria</td>
+            <td><span class="chip c-ok">ponta a ponta</span></td>
           </tr>
         </tbody>
       </table>
@@ -1125,7 +1123,7 @@ npm run lint</pre>
           <tr><td class="tight">Swagger em <code>/api/docs</code></td><td>Pronto, com <code>addBearerAuth()</code> e descrições em todas as rotas.</td></tr>
           <tr><td class="tight">ValidationPipe global</td><td>Pronto — <code>whitelist</code>, <code>forbidNonWhitelisted</code> e <code>transform</code> ligados.</td></tr>
           <tr><td class="tight">Seed do Prisma</td><td>Catálogos + administrador da plataforma (controlado por <code>PLATFORM_ADMIN_PASSWORD</code>). Idempotente, e redefine a senha do root quando rodado de novo.</td></tr>
-          <tr><td class="tight">Testes</td><td><strong>62 testes unitários</strong> (escopo de tenant, guards de escopo, paginação e busca de clientes, 17 do serviço de processos e 8 do de despesas — isolamento, filtros, agregação do summary) + <strong>e2e</strong> com ~37 casos (26 de isolamento + 5 de processos + 6 de despesas, incluindo o 403 do OPERACIONAL no financeiro), que precisa do Postgres.</td></tr>
+          <tr><td class="tight">Testes</td><td><strong>65 testes unitários</strong> (escopo de tenant, guards de escopo, paginação de clientes, 17 do serviço de processos, 8 do de despesas e 3 do dashboard — agregação e gating do financeiro) + <strong>e2e</strong> com ~39 casos (26 de isolamento + 5 de processos + 6 de despesas + 2 do dashboard, incluindo o <code>finance: null</code> do OPERACIONAL), que precisa do Postgres.</td></tr>
           <tr><td class="tight">docker-compose</td><td>Postgres + backend. Falta o frontend e faltam as env vars de JWT no serviço do backend — o container do backend não sobe.</td></tr>
           <tr><td class="tight">Proxy de dev</td><td>Vite reescreve <code>/api</code> → <code>localhost:3000</code>. Funciona; esconde a falta de CORS.</td></tr>
           <tr><td class="tight">Design tokens / UI kit</td><td>CSS próprio, sem biblioteca. Primitivos em <code>components/ui</code>: Button, Input, Badge, Modal, Icon, ErrorBoundary.</td></tr>
@@ -1140,7 +1138,7 @@ npm run lint</pre>
     <div class="sec-head"><span class="sec-num">03</span><h2>API implementada</h2></div>
 
     <p class="lead">
-      43 endpoints em 8 controllers. A coluna <strong>proteção</strong> agora tem dois eixos:
+      44 endpoints em 9 controllers. A coluna <strong>proteção</strong> agora tem dois eixos:
       o <em>escopo</em> da sessão (escritório ou plataforma) e, dentro de um escritório, o
       <em>papel</em>. <span class="m">tenant</span> quer dizer que a rota exige sessão de
       escritório e lê o <code>companyId</code> do token;
@@ -1211,6 +1209,9 @@ npm run lint</pre>
           <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/expenses/:id</code></td><td class="tight">ADMIN · FINANCEIRO</td><td>Despesa de outra empresa: 404.</td></tr>
           <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/expenses/:id</code></td><td class="tight">ADMIN · FINANCEIRO</td><td>Edita nome, valor, categoria e data.</td></tr>
           <tr><td class="tight"><span class="meth delete">DELETE</span></td><td class="tight"><code>/expenses/:id</code></td><td class="tight">ADMIN · FINANCEIRO</td><td>Delete <strong>físico</strong>. <code>204</code>. <code>OPERACIONAL</code> leva 403 em qualquer rota deste grupo.</td></tr>
+
+          <tr class="group"><th colspan="4">dashboard — sessão de escritório</th></tr>
+          <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/dashboard</code></td><td class="tight">tenant</td><td>Indicadores agregados da empresa num payload só: KPIs, processos por status, atividade recente e <code>finance</code> (despesa do mês + por categoria) — este último só para ADMIN/FINANCEIRO; <code>OPERACIONAL</code> recebe <code>null</code>.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1332,9 +1333,10 @@ npm run lint</pre>
     <div class="sec-head"><span class="sec-num">05</span><h2>Rota para terminar</h2></div>
 
     <p class="lead">
-      As fases estão em ordem de dependência, não de preferência. As Fases 0, 1, 2 e 3 saíram —
-      a fronteira do tenant, clientes, o núcleo de processos e o financeiro. Sobrou o dashboard.
-      As estimativas assumem você trabalhando sozinha nesse ritmo.
+      As fases estão em ordem de dependência, não de preferência. As Fases 0 a 4 saíram — a
+      fronteira do tenant, clientes, o núcleo de processos, o financeiro e o dashboard. Resta a
+      Fase 5, o endurecimento para produção. As estimativas assumem você trabalhando sozinha
+      nesse ritmo.
     </p>
 
     <div class="phases">
@@ -1406,12 +1408,13 @@ npm run lint</pre>
         <header>
           <span class="pn">Fase 4</span>
           <h3>Dashboard</h3>
-          <span class="est">2–3 dias</span>
+          <span class="est"><span class="chip c-ok">concluída</span></span>
         </header>
         <ul>
-          <li>Um endpoint de agregação (<code>GET /dashboard</code>) em vez de o front somar no cliente.</li>
-          <li>KPIs que os dados já sustentam: processos por status, processos abertos no mês, clientes ativos, despesa do mês, valor em curso.</li>
-          <li>Um gráfico só — distribuição por status ou evolução mensal. O card de boas-vindas já está no lugar.</li>
+          <li><b>Endpoint de agregação:</b> <code>GET /dashboard</code> devolve tudo num payload só (contagens, <code>groupBy</code> e <code>aggregate</code>), sem o front somar listas — e sem migration, porque os dados já existiam.</li>
+          <li><b>KPIs:</b> processos em aberto, encerrados e ganho no mês (soma do Total que entrou), clientes ativos e valor em curso — mais despesa do mês para quem pode.</li>
+          <li><b>Gráfico:</b> donut de processos por status (reusa a cor de <code>status-variant.ts</code>), além da atividade recente vinda de <code>ProcessStatusHistory</code>.</li>
+          <li><b>Financeiro gated:</b> o bloco <code>finance</code> vem <code>null</code> para <code>OPERACIONAL</code>, e a tela esconde o card e a quebra por categoria.</li>
         </ul>
       </div>
 
@@ -1504,10 +1507,10 @@ npm run lint</pre>
   </section>
 
   <footer>
-    <span>Levantado a partir do código em feat/fase-3-financeiro, depois da Fase 3</span>
-    <span>backend: 9 módulos · 43 endpoints</span>
-    <span>frontend: 7 telas · 6 primitivos de UI</span>
-    <span>banco: 10 tabelas · 6 migrations · 62 testes + e2e</span>
+    <span>Levantado a partir do código em feat/fase-4-dashboard, depois da Fase 4</span>
+    <span>backend: 10 módulos · 44 endpoints</span>
+    <span>frontend: 8 telas · 6 primitivos de UI</span>
+    <span>banco: 10 tabelas · 6 migrations · 65 testes + e2e</span>
   </footer>
 
 </div>

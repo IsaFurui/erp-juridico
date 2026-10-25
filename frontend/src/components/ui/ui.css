@@ -140,6 +140,7 @@ a.ui-button {
   place-items: center;
   padding: 20px;
   background: rgba(15, 23, 42, 0.45);
+  animation: ui-fade 0.18s ease;
 }
 
 .ui-modal {
@@ -151,6 +152,7 @@ a.ui-button {
   border-radius: var(--radius-lg);
   padding: 24px;
   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.3);
+  animation: ui-modal-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ui-modal-header {
@@ -262,5 +264,81 @@ a.ui-button {
 @keyframes ui-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* ---------- animações ---------- */
+@keyframes ui-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes ui-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes ui-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* ---------- gaveta lateral (drawer) ---------- */
+.ui-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(15, 23, 42, 0.45);
+  animation: ui-fade 0.2s ease;
+}
+
+.ui-drawer {
+  width: 100%;
+  max-width: 420px;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--card);
+  padding: 24px;
+  box-shadow: -20px 0 45px rgba(15, 23, 42, 0.3);
+  display: flex;
+  flex-direction: column;
+  animation: ui-drawer-in 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ui-drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+.ui-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.ui-drawer-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-modal-overlay,
+  .ui-modal,
+  .ui-drawer,
+  .ui-drawer-overlay,
+  .ui-pop {
+    animation: none !important;
+    transition: none !important;
   }
 }

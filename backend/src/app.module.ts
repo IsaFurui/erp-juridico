@@ -12,6 +12,7 @@ import { ProcessTypeModule } from './process-type/process-type.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 import { ProcessModule } from './process/process.module';
 import { ExpenseModule } from './expense/expense.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
     imports: [
@@ -26,6 +27,7 @@ import { ExpenseModule } from './expense/expense.module';
         PlatformAdminModule,
         ProcessModule,
         ExpenseModule,
+        DashboardModule,
     ],
     controllers: [AppController],
     providers: [AppService],

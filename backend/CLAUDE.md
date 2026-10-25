@@ -27,7 +27,8 @@ src/
 ├── process-status/    # CRUD de status de processo
 ├── process-type/      # CRUD de tipos de processo + subtipos
 ├── process/           # Entidade central Process (CRUD, histórico de status, valores)
-└── expense/           # Financeiro — despesas do escritório (ADMIN + FINANCEIRO)
+├── expense/           # Financeiro — despesas do escritório (ADMIN + FINANCEIRO)
+└── dashboard/         # Indicadores do escritório (GET /dashboard, só leitura)
 ```
 
 > Todos os models do schema já têm módulo. O único sem CRUD próprio é

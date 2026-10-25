@@ -255,6 +255,42 @@ export interface ListExpensesParams {
   to?: string
 }
 
+/* ----------------------------- Dashboard ----------------------------- */
+
+export interface DashboardStatusSlice {
+  statusId: number
+  description: string
+  isFinal: boolean
+  count: number
+}
+
+export interface DashboardActivity {
+  id: number
+  changedAt: string
+  note: string | null
+  status: { description: string; isFinal: boolean }
+  process: { id: number; name: string; code: string }
+  user: { name: string }
+}
+
+/** Só vem para ADMIN e FINANCEIRO; `null` para os demais. */
+export interface DashboardFinance {
+  expensesThisMonth: string
+  byCategory: { category: ExpenseCategory; totalAmount: string }[]
+}
+
+export interface DashboardData {
+  processesByStatus: DashboardStatusSlice[]
+  openProcesses: number
+  closedThisMonth: number
+  /** Soma do Total dos processos encerrados no mês (o que entrou). */
+  earnedThisMonth: string
+  activeClients: number
+  amountInProgress: string
+  recentActivity: DashboardActivity[]
+  finance: DashboardFinance | null
+}
+
 export class ApiError extends Error {
   status: number
 
@@ -486,6 +522,10 @@ export const expensesApi = {
     }),
   remove: (id: number): Promise<void> =>
     request(`/expenses/${id}`, { method: 'DELETE' }),
+}
+
+export const dashboardApi = {
+  get: (): Promise<DashboardData> => request('/dashboard'),
 }
 
 export const processStatusApi = {
