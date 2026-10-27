@@ -20,11 +20,14 @@ import {
 import { ProcessTypeService } from './process-type.service';
 import { CreateProcessTypeDto } from './dto/create-process-type.dto';
 import { UpdateProcessTypeDto } from './dto/update-process-type.dto';
+import { CreateProcessSubtypeDto } from './dto/create-process-subtype.dto';
+import { UpdateProcessSubtypeDto } from './dto/update-process-subtype.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../auth/enums/user-role.enum';
+import { PlatformGuard } from '../auth/guards/platform.guard';
 
+// Catálogo global, compartilhado por todos os escritórios: a LEITURA é aberta
+// (o formulário de processo precisa dela), mas a ESCRITA é exclusiva do root
+// (PlatformGuard) — um ADMIN de escritório não edita catálogo de todo mundo.
 @ApiTags('process-type')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -33,12 +36,11 @@ export class ProcessTypeController {
     constructor(private readonly processTypeService: ProcessTypeService) {}
 
     @Post()
-    @UseGuards(RolesGuard)
-    @Roles(UserRole.ADMIN)
-    @ApiOperation({ summary: 'Cadastrar novo tipo de processo (apenas ADMIN)' })
+    @UseGuards(PlatformGuard)
+    @ApiOperation({ summary: 'Cadastrar tipo de processo (apenas plataforma)' })
     @ApiResponse({ status: 201, description: 'Tipo cadastrado com sucesso' })
     @ApiResponse({ status: 409, description: 'Tipo já cadastrado' })
-    @ApiResponse({ status: 400, description: 'Dados inválidos' })
+    @ApiResponse({ status: 403, description: 'Acesso negado' })
     create(@Body() dto: CreateProcessTypeDto) {
         return this.processTypeService.create(dto);
     }
@@ -66,10 +68,48 @@ export class ProcessTypeController {
         return this.processTypeService.listSubtypes(id);
     }
 
+    @Post(':id/subtypes')
+    @UseGuards(PlatformGuard)
+    @ApiOperation({ summary: 'Criar subtipo (apenas plataforma)' })
+    @ApiResponse({ status: 201, description: 'Subtipo criado com sucesso' })
+    @ApiResponse({ status: 404, description: 'Tipo não encontrado' })
+    @ApiResponse({ status: 409, description: 'Subtipo já existe neste tipo' })
+    createSubtype(
+        @Param('id', ParseIntPipe) id: number,
+        @Body() dto: CreateProcessSubtypeDto,
+    ) {
+        return this.processTypeService.createSubtype(id, dto);
+    }
+
+    @Patch(':id/subtypes/:subtypeId')
+    @UseGuards(PlatformGuard)
+    @ApiOperation({ summary: 'Atualizar subtipo (apenas plataforma)' })
+    @ApiResponse({ status: 200, description: 'Subtipo atualizado com sucesso' })
+    @ApiResponse({ status: 404, description: 'Tipo ou subtipo não encontrado' })
+    updateSubtype(
+        @Param('id', ParseIntPipe) id: number,
+        @Param('subtypeId', ParseIntPipe) subtypeId: number,
+        @Body() dto: UpdateProcessSubtypeDto,
+    ) {
+        return this.processTypeService.updateSubtype(id, subtypeId, dto);
+    }
+
+    @Delete(':id/subtypes/:subtypeId')
+    @UseGuards(PlatformGuard)
+    @HttpCode(HttpStatus.NO_CONTENT)
+    @ApiOperation({ summary: 'Remover subtipo (apenas plataforma)' })
+    @ApiResponse({ status: 204, description: 'Subtipo removido com sucesso' })
+    @ApiResponse({ status: 404, description: 'Tipo ou subtipo não encontrado' })
+    removeSubtype(
+        @Param('id', ParseIntPipe) id: number,
+        @Param('subtypeId', ParseIntPipe) subtypeId: number,
+    ) {
+        return this.processTypeService.removeSubtype(id, subtypeId);
+    }
+
     @Patch(':id')
-    @UseGuards(RolesGuard)
-    @Roles(UserRole.ADMIN)
-    @ApiOperation({ summary: 'Atualizar tipo de processo (apenas ADMIN)' })
+    @UseGuards(PlatformGuard)
+    @ApiOperation({ summary: 'Atualizar tipo de processo (apenas plataforma)' })
     @ApiResponse({ status: 200, description: 'Tipo atualizado com sucesso' })
     @ApiResponse({ status: 403, description: 'Acesso negado' })
     @ApiResponse({ status: 404, description: 'Tipo não encontrado' })
@@ -81,10 +121,9 @@ export class ProcessTypeController {
     }
 
     @Delete(':id')
-    @UseGuards(RolesGuard)
-    @Roles(UserRole.ADMIN)
+    @UseGuards(PlatformGuard)
     @HttpCode(HttpStatus.NO_CONTENT)
-    @ApiOperation({ summary: 'Remover tipo de processo (apenas ADMIN)' })
+    @ApiOperation({ summary: 'Remover tipo de processo (apenas plataforma)' })
     @ApiResponse({ status: 204, description: 'Tipo removido com sucesso' })
     @ApiResponse({ status: 403, description: 'Acesso negado' })
     @ApiResponse({ status: 404, description: 'Tipo não encontrado' })

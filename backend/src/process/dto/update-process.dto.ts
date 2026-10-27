@@ -45,6 +45,16 @@ export class UpdateProcessDto {
     @IsPositive()
     subtypeId?: number | null;
 
+    @ApiPropertyOptional({
+        example: 4,
+        description: 'ID do advogado responsável. Envie null para remover.',
+        nullable: true,
+    })
+    @IsOptional()
+    @IsInt()
+    @IsPositive()
+    responsibleId?: number | null;
+
     @ApiPropertyOptional({ example: 5000 })
     @IsOptional()
     @IsNumber({ maxDecimalPlaces: 2 })

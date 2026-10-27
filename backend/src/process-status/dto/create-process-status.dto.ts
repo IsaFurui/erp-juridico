@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateProcessStatusDto {
     @ApiProperty({
@@ -9,4 +9,12 @@ export class CreateProcessStatusDto {
     @IsString()
     @MinLength(2)
     description!: string;
+
+    @ApiPropertyOptional({
+        default: false,
+        description: 'Marca os status que encerram o processo',
+    })
+    @IsOptional()
+    @IsBoolean()
+    isFinal?: boolean;
 }

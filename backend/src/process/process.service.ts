@@ -5,6 +5,7 @@ import {
     BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateProcessDto } from './dto/create-process.dto';
 import { UpdateProcessDto } from './dto/update-process.dto';
 import { ChangeProcessStatusDto } from './dto/change-process-status.dto';
@@ -28,6 +29,7 @@ const PUBLIC_SELECT = {
     client: { select: { id: true, name: true } },
     type: { select: { id: true, name: true } },
     subtype: { select: { id: true, name: true } },
+    responsible: { select: { id: true, name: true } },
     status: { select: { id: true, description: true, isFinal: true } },
 };
 
@@ -49,7 +51,10 @@ const DETAIL_SELECT = {
 
 @Injectable()
 export class ProcessService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly notifications: NotificationsService,
+    ) {}
 
     async create(dto: CreateProcessDto, companyId: number, userId: number) {
         await this.ensureClient(dto.clientId, companyId);
@@ -57,6 +62,9 @@ export class ProcessService {
         const status = await this.ensureStatus(dto.statusId);
         if (dto.subtypeId != null) {
             await this.ensureSubtype(dto.subtypeId, dto.typeId);
+        }
+        if (dto.responsibleId != null) {
+            await this.ensureResponsible(dto.responsibleId, companyId);
         }
         await this.ensureCodeAvailable(dto.code);
 
@@ -68,7 +76,7 @@ export class ProcessService {
                 : this.computeTotal(dto.fixedAmount, dto.expectedAmount);
 
         // Transação: o processo e a primeira linha do histórico nascem juntos.
-        return this.prisma.$transaction(async (tx) => {
+        const process = await this.prisma.$transaction(async (tx) => {
             const process = await tx.process.create({
                 data: {
                     name: dto.name,
@@ -78,6 +86,7 @@ export class ProcessService {
                     typeId: dto.typeId,
                     statusId: dto.statusId,
                     subtypeId: dto.subtypeId ?? null,
+                    responsibleId: dto.responsibleId ?? null,
                     fixedAmount: dto.fixedAmount ?? null,
                     expectedAmount: dto.expectedAmount ?? null,
                     totalAmount,
@@ -96,6 +105,16 @@ export class ProcessService {
 
             return process;
         });
+
+        await this.notifications.notifyCompany({
+            companyId,
+            actorId: userId,
+            type: 'PROCESS_CREATED',
+            message: `Novo processo: ${process.name}`,
+            processId: process.id,
+        });
+
+        return process;
     }
 
     /** Total previsto quando o processo está em andamento. */
@@ -175,6 +194,9 @@ export class ProcessService {
             const effectiveTypeId = dto.typeId ?? current.type.id;
             await this.ensureSubtype(dto.subtypeId, effectiveTypeId);
         }
+        if (dto.responsibleId != null) {
+            await this.ensureResponsible(dto.responsibleId, companyId);
+        }
         if (dto.code !== undefined && dto.code !== current.code) {
             await this.ensureCodeAvailable(dto.code);
         }
@@ -185,6 +207,9 @@ export class ProcessService {
             ...(dto.clientId !== undefined && { clientId: dto.clientId }),
             ...(dto.typeId !== undefined && { typeId: dto.typeId }),
             ...(dto.subtypeId !== undefined && { subtypeId: dto.subtypeId }),
+            ...(dto.responsibleId !== undefined && {
+                responsibleId: dto.responsibleId,
+            }),
             ...(dto.fixedAmount !== undefined && {
                 fixedAmount: dto.fixedAmount,
             }),
@@ -254,6 +279,14 @@ export class ProcessService {
             });
         });
 
+        await this.notifications.notifyCompany({
+            companyId,
+            actorId: userId,
+            type: 'STATUS_CHANGED',
+            message: `${current.name} → ${status.description}`,
+            processId: id,
+        });
+
         return this.findById(id, companyId);
     }
 
@@ -283,6 +316,13 @@ export class ProcessService {
             where: { id: clientId, companyId },
         });
         if (!client) throw new BadRequestException('Cliente inválido');
+    }
+
+    private async ensureResponsible(userId: number, companyId: number) {
+        const user = await this.prisma.user.findFirst({
+            where: { id: userId, companyId },
+        });
+        if (!user) throw new BadRequestException('Responsável inválido');
     }
 
     private async ensureType(typeId: number) {

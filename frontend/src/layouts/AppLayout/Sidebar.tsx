@@ -32,12 +32,17 @@ const MAIN_NAV: NavItem[] = [
 
 const ADMIN_NAV: NavItem[] = [
   { to: APP_ROUTES.users, label: 'Usuários', icon: 'users' },
+]
+
+// Configurações é pessoal: todo usuário do escritório tem.
+const ACCOUNT_NAV: NavItem[] = [
   { to: APP_ROUTES.settings, label: 'Configurações', icon: 'settings' },
 ]
 
 // Administração da plataforma, não do escritório.
 const PLATFORM_NAV: NavItem[] = [
   { to: APP_ROUTES.companies, label: 'Empresas', icon: 'shield' },
+  { to: APP_ROUTES.catalogs, label: 'Catálogos', icon: 'processes' },
 ]
 
 function SectionLabel({ children }: { children: string }) {
@@ -62,11 +67,13 @@ function NavItemLink({ item }: { item: NavItem }) {
 }
 
 function Sidebar() {
-  const { user, logout } = useAuth()
+  const { user, profile, logout } = useAuth()
 
-  const initials = user?.login
-    ? user.login.slice(0, 2).toUpperCase()
-    : '??'
+  const tenant = user && !isPlatform(user)
+  const displayName = tenant ? (profile?.name ?? user.login) : user?.login
+  const initials = (profile?.name ?? user?.login ?? '??')
+    .slice(0, 2)
+    .toUpperCase()
 
   return (
     <aside className="sidebar">
@@ -96,6 +103,15 @@ function Sidebar() {
           </>
         )}
 
+        {user && !isPlatform(user) && (
+          <>
+            <SectionLabel>Conta</SectionLabel>
+            {ACCOUNT_NAV.map((item) => (
+              <NavItemLink key={item.to} item={item} />
+            ))}
+          </>
+        )}
+
         {user && isPlatform(user) && (
           <>
             <SectionLabel>Plataforma</SectionLabel>
@@ -107,9 +123,19 @@ function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
-        <div className="sidebar-avatar">{initials}</div>
+        <div className="sidebar-avatar">
+          {tenant && profile?.avatarUrl ? (
+            <img
+              src={profile.avatarUrl}
+              alt=""
+              className="sidebar-avatar-img"
+            />
+          ) : (
+            initials
+          )}
+        </div>
         <div className="sidebar-user-info">
-          <span className="sidebar-user-name">@{user?.login}</span>
+          <span className="sidebar-user-name">{displayName}</span>
           <span className="sidebar-user-role">
             {user && !isPlatform(user) ? getRoleLabel(user.role) : ''}
             {user && isPlatform(user) ? 'Plataforma' : ''}

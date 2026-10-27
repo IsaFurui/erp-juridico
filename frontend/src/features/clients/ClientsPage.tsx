@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import Icon from '../../components/ui/Icon'
@@ -26,8 +27,14 @@ function ClientsPage() {
   // nem empresa, então nunca é ADMIN aqui.
   const isAdmin = user !== null && isTenant(user) && user.role === 'ADMIN'
 
-  const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState('')
+  // Vindo da busca global (?q=nome), a lista já abre filtrada.
+  const [searchParams] = useSearchParams()
+  const [searchInput, setSearchInput] = useState(
+    () => searchParams.get('q') ?? '',
+  )
+  const [search, setSearch] = useState(
+    () => searchParams.get('q')?.trim() ?? '',
+  )
   const [page, setPage] = useState(1)
   const [showInactive, setShowInactive] = useState(false)
   // Muda sempre que uma escrita acontece, para a listagem ser buscada de novo

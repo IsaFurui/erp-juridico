@@ -3,7 +3,10 @@ import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Modal from '../../components/ui/Modal'
 import { parseBRLInput } from '../../lib/money'
+import { useAuth } from '../../contexts/AuthContext'
+import { isTenant } from '../../lib/jwt'
 import type {
+  Colleague,
   ProcessDetail,
   ProcessStatus,
   ProcessSubtype,
@@ -11,6 +14,7 @@ import type {
 } from '../../lib/api'
 import {
   createProcess,
+  listColleagues,
   listProcessTypes,
   listSubtypes,
   updateProcess,
@@ -44,6 +48,10 @@ function ProcessFormModal({
 }: ProcessFormModalProps) {
   const isEditing = Boolean(initial)
 
+  // No cadastro, o responsável já vem como o próprio usuário (pode trocar).
+  const { user } = useAuth()
+  const currentUserId = user && isTenant(user) ? user.sub : undefined
+
   const [name, setName] = useState(() => initial?.name ?? '')
   const [code, setCode] = useState(() => initial?.code ?? '')
   const [clientId, setClientId] = useState<number | ''>(
@@ -65,18 +73,25 @@ function ProcessFormModal({
   )
   const [drawerOpen, setDrawerOpen] = useState(false)
 
+  const [responsibleId, setResponsibleId] = useState<number | ''>(
+    () => initial?.responsible?.id ?? currentUserId ?? '',
+  )
+
   const [types, setTypes] = useState<ProcessType[]>([])
   const [subtypes, setSubtypes] = useState<ProcessSubtype[]>([])
+  const [colleagues, setColleagues] = useState<Colleague[]>([])
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Carrega os tipos uma vez. Os clientes vêm por busca no ClientPicker.
+  // Carrega tipos e colegas uma vez. Os clientes vêm por busca no ClientPicker.
   useEffect(() => {
     let cancelled = false
-    listProcessTypes()
-      .then((typesResult) => {
-        if (!cancelled) setTypes(typesResult)
+    Promise.all([listProcessTypes(), listColleagues()])
+      .then(([typesResult, colleaguesResult]) => {
+        if (cancelled) return
+        setTypes(typesResult)
+        setColleagues(colleaguesResult)
       })
       .catch(() => {
         if (!cancelled) setError('Não foi possível carregar os cadastros.')
@@ -135,6 +150,7 @@ function ProcessFormModal({
           clientId,
           typeId,
           subtypeId: subtypeId === '' ? null : subtypeId,
+          responsibleId: responsibleId === '' ? null : responsibleId,
           fixedAmount,
           expectedAmount,
         })
@@ -151,6 +167,7 @@ function ProcessFormModal({
           typeId,
           statusId,
           subtypeId: subtypeId === '' ? null : subtypeId,
+          responsibleId: responsibleId === '' ? null : responsibleId,
           fixedAmount,
           expectedAmount,
         })
@@ -246,6 +263,29 @@ function ProcessFormModal({
               ))}
             </select>
           </div>
+        </div>
+
+        <div className="ui-field">
+          <label className="ui-field-label" htmlFor="process-responsible">
+            Advogado responsável
+          </label>
+          <select
+            id="process-responsible"
+            className="ui-input"
+            value={responsibleId}
+            onChange={(e) =>
+              setResponsibleId(
+                e.target.value === '' ? '' : Number(e.target.value),
+              )
+            }
+          >
+            <option value="">Sem responsável</option>
+            {colleagues.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="process-form-row">

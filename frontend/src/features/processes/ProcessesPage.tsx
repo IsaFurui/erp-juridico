@@ -240,6 +240,11 @@ function ProcessesPage() {
                 <div className="process-card-sub">
                   {p.client.name} · {p.type.name}
                 </div>
+                {p.responsible && (
+                  <div className="process-card-resp">
+                    Resp.: {p.responsible.name}
+                  </div>
+                )}
                 <div className="process-card-money">
                   <div className="money-cell">
                     <span className="money-label">Entrada</span>

@@ -19,7 +19,10 @@ export class ProcessStatusService {
         if (existing) throw new ConflictException('Status já cadastrado');
 
         return this.prisma.processStatus.create({
-            data: { description: dto.description },
+            data: {
+                description: dto.description,
+                ...(dto.isFinal !== undefined && { isFinal: dto.isFinal }),
+            },
         });
     }
 
@@ -44,6 +47,7 @@ export class ProcessStatusService {
                 ...(dto.description !== undefined && {
                     description: dto.description,
                 }),
+                ...(dto.isFinal !== undefined && { isFinal: dto.isFinal }),
             },
         });
     }

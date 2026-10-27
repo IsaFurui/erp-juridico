@@ -1,6 +1,12 @@
-import { processesApi, processStatusApi, processTypeApi } from '../../lib/api'
+import {
+  processesApi,
+  processStatusApi,
+  processTypeApi,
+  usersApi,
+} from '../../lib/api'
 import type {
   ChangeProcessStatusPayload,
+  Colleague,
   CreateProcessPayload,
   ListProcessesParams,
   Paginated,
@@ -11,6 +17,10 @@ import type {
   ProcessType,
   UpdateProcessPayload,
 } from '../../lib/api'
+
+export function listColleagues(): Promise<Colleague[]> {
+  return usersApi.colleagues()
+}
 
 export function listProcesses(
   params: ListProcessesParams = {},

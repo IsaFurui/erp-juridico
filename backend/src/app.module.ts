@@ -13,6 +13,7 @@ import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 import { ProcessModule } from './process/process.module';
 import { ExpenseModule } from './expense/expense.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
     imports: [
@@ -28,6 +29,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
         ProcessModule,
         ExpenseModule,
         DashboardModule,
+        NotificationsModule,
     ],
     controllers: [AppController],
     providers: [AppService],

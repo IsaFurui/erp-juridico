@@ -61,10 +61,13 @@ model User {
   login        String
   passwordHash String
   role         UserRole @default(OPERACIONAL)
+  avatarUrl    String?
   companyId    Int
 
   company       Company                @relation(fields: [companyId], references: [id], onDelete: Restrict)
   statusChanges ProcessStatusHistory[]
+  notifications Notification[]
+  responsibleFor Process[]
 
   @@unique([companyId, login])
 }
@@ -139,14 +142,34 @@ model Process {
   totalAmount    Decimal  @default(0) @db.Decimal(12, 2)
   typeId         Int
   subtypeId      Int?
+  responsibleId  Int?
 
-  company Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  client  Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  status  ProcessStatus   @relation(fields: [statusId], references: [id], onDelete: Restrict)
-  type    ProcessType     @relation(fields: [typeId], references: [id], onDelete: Restrict)
-  subtype ProcessSubtype? @relation(fields: [subtypeId], references: [id], onDelete: Restrict)
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  client      Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  status      ProcessStatus   @relation(fields: [statusId], references: [id], onDelete: Restrict)
+  type        ProcessType     @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  subtype     ProcessSubtype? @relation(fields: [subtypeId], references: [id], onDelete: Restrict)
+  responsible User?           @relation(fields: [responsibleId], references: [id], onDelete: SetNull)
 
   statusHistory ProcessStatusHistory[]
+}
+
+/// Notificação de um usuário (destinatário). Uma linha por pessoa, com estado
+/// de lido próprio. `processId` é um ponteiro solto (sem FK) para o delete
+/// físico de processo não esbarrar em Restrict.
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  companyId Int
+  type      String
+  message   String
+  processId Int?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
 }
 
 /// Livro de registro do status do processo: ganha uma linha a cada mudança,

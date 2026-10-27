@@ -1,5 +1,6 @@
 export const STORAGE_KEYS = {
   authToken: 'erp_juridico_token',
+  theme: 'erp_juridico_theme',
 } as const
 
 export const APP_ROUTES = {
@@ -7,10 +8,11 @@ export const APP_ROUTES = {
   dashboard: '/',
   users: '/admin/users',
   companies: '/admin/empresas',
+  catalogs: '/admin/catalogos',
   clients: '/clientes',
   processes: '/processos',
   finance: '/financeiro',
-  settings: '/admin/configuracoes',
+  settings: '/configuracoes',
 } as const
 
 /** Caminho da página de um processo específico. */

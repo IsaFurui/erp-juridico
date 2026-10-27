@@ -24,6 +24,14 @@ export interface User {
   login: string
   role: UserRole
   companyId: number
+  /** Foto de perfil como data URL (base64); ausente quando não tem. */
+  avatarUrl?: string | null
+}
+
+export interface UpdateProfilePayload {
+  name?: string
+  /** String vazia remove a foto. */
+  avatarUrl?: string
 }
 
 export interface CreateUserPayload {
@@ -142,6 +150,7 @@ export interface ProcessListItem {
   client: ProcessRef
   type: ProcessRef
   subtype: ProcessRef | null
+  responsible: ProcessRef | null
   status: ProcessStatusRef
   createdAt: string
   updatedAt: string
@@ -176,6 +185,7 @@ export interface CreateProcessPayload {
   typeId: number
   statusId: number
   subtypeId?: number | null
+  responsibleId?: number | null
   fixedAmount?: number
   expectedAmount?: number
 }
@@ -186,8 +196,16 @@ export interface UpdateProcessPayload {
   clientId?: number
   typeId?: number
   subtypeId?: number | null
+  responsibleId?: number | null
   fixedAmount?: number
   expectedAmount?: number
+}
+
+/** Lista enxuta de colegas do escritório (para o picker de responsável). */
+export interface Colleague {
+  id: number
+  name: string
+  role: UserRole
 }
 
 export interface ChangeProcessStatusPayload {
@@ -289,6 +307,22 @@ export interface DashboardData {
   amountInProgress: string
   recentActivity: DashboardActivity[]
   finance: DashboardFinance | null
+}
+
+/* ---------------------------- Notificações --------------------------- */
+
+export interface Notification {
+  id: number
+  type: 'PROCESS_CREATED' | 'STATUS_CHANGED'
+  message: string
+  processId: number | null
+  read: boolean
+  createdAt: string
+}
+
+export interface NotificationList {
+  items: Notification[]
+  unreadCount: number
 }
 
 export class ApiError extends Error {
@@ -418,6 +452,13 @@ export const usersApi = {
   // na sessão da plataforma, que não tem empresa própria.
   list: (companyId?: number): Promise<User[]> =>
     request(companyId ? `/users?companyId=${companyId}` : '/users'),
+  me: (): Promise<User> => request('/users/me'),
+  colleagues: (): Promise<Colleague[]> => request('/users/colleagues'),
+  updateProfile: (payload: UpdateProfilePayload): Promise<User> =>
+    request('/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
   create: (payload: CreateUserPayload): Promise<User> =>
     request('/auth/register', {
       method: 'POST',
@@ -528,12 +569,78 @@ export const dashboardApi = {
   get: (): Promise<DashboardData> => request('/dashboard'),
 }
 
+export const notificationsApi = {
+  list: (): Promise<NotificationList> => request('/notifications'),
+  markRead: (id: number): Promise<void> =>
+    request(`/notifications/${id}/read`, { method: 'PATCH' }),
+  markAllRead: (): Promise<void> =>
+    request('/notifications/read-all', { method: 'PATCH' }),
+}
+
+export interface CreateProcessStatusPayload {
+  description: string
+  isFinal?: boolean
+}
+
+export interface UpdateProcessStatusPayload {
+  description?: string
+  isFinal?: boolean
+}
+
 export const processStatusApi = {
   listAll: (): Promise<ProcessStatus[]> => request('/process-status'),
+  create: (payload: CreateProcessStatusPayload): Promise<ProcessStatus> =>
+    request('/process-status', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  update: (
+    id: number,
+    payload: UpdateProcessStatusPayload,
+  ): Promise<ProcessStatus> =>
+    request(`/process-status/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: number): Promise<void> =>
+    request(`/process-status/${id}`, { method: 'DELETE' }),
 }
 
 export const processTypeApi = {
   listAll: (): Promise<ProcessType[]> => request('/process-type'),
   listSubtypes: (id: number): Promise<ProcessSubtype[]> =>
     request(`/process-type/${id}/subtypes`),
+  create: (payload: { name: string }): Promise<ProcessType> =>
+    request('/process-type', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  update: (id: number, payload: { name: string }): Promise<ProcessType> =>
+    request(`/process-type/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: number): Promise<void> =>
+    request(`/process-type/${id}`, { method: 'DELETE' }),
+  createSubtype: (
+    typeId: number,
+    payload: { name: string },
+  ): Promise<ProcessSubtype> =>
+    request(`/process-type/${typeId}/subtypes`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateSubtype: (
+    typeId: number,
+    subtypeId: number,
+    payload: { name: string },
+  ): Promise<ProcessSubtype> =>
+    request(`/process-type/${typeId}/subtypes/${subtypeId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  removeSubtype: (typeId: number, subtypeId: number): Promise<void> =>
+    request(`/process-type/${typeId}/subtypes/${subtypeId}`, {
+      method: 'DELETE',
+    }),
 }

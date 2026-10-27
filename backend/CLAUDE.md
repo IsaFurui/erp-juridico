@@ -24,11 +24,12 @@ src/
 ├── users/             # Gestão de usuários
 ├── company/           # Gestão de empresas (CRUD + desativação)
 ├── clients/           # Gestão de clientes (CRUD + desativação)
-├── process-status/    # CRUD de status de processo
-├── process-type/      # CRUD de tipos de processo + subtipos
+├── process-status/    # Catálogo de status (escrita só da plataforma)
+├── process-type/      # Catálogo de tipos + subtipos (escrita só da plataforma)
 ├── process/           # Entidade central Process (CRUD, histórico de status, valores)
 ├── expense/           # Financeiro — despesas do escritório (ADMIN + FINANCEIRO)
-└── dashboard/         # Indicadores do escritório (GET /dashboard, só leitura)
+├── dashboard/         # Indicadores do escritório (GET /dashboard, só leitura)
+└── notifications/     # Notificações por usuário (geradas por eventos de processo)
 ```
 
 > Todos os models do schema já têm módulo. O único sem CRUD próprio é
@@ -101,8 +102,13 @@ Nunca retorna `passwordHash` nos selects públicos.
 | `findById(id)`                      | Busca por ID                                     |
 | `create(input)`                     | Cria usuário (recebe hash pré-gerado)            |
 | `findAllByCompany(companyId)`       | Lista usuários da empresa (sem senha)            |
-| `update(id, dto)`                   | Atualiza dados do usuário                         |
+| `update(id, dto)`                   | ADMIN atualiza nome/role de um usuário            |
+| `updateProfile(id, dto)`            | O próprio usuário edita nome e foto (`avatarUrl`) |
 | `changePassword(id, dto)`           | Troca a senha do usuário                          |
+
+> `PATCH /users/me` (qualquer usuário do escritório) edita o **próprio** nome e a
+> foto (`avatarUrl`, data URL base64). É distinto de `PATCH /users/:id` (ADMIN, mexe
+> em role de outros).
 
 ---
 
@@ -200,6 +206,7 @@ model User {
   login        String
   passwordHash String
   role         UserRole @default(OPERACIONAL)
+  avatarUrl    String?  // foto de perfil (data URL base64)
   companyId    Int
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
@@ -212,7 +219,11 @@ O login é único **por empresa** (`@@unique([companyId, login])`), permitindo o
 
 ### Models do schema
 
-`Company`, `User`, `Client`, `Expense`, `ProcessStatus`, `ProcessType`, `ProcessSubtype`, `Process`, `ProcessStatusHistory`.
+`Company`, `User`, `Client`, `Expense`, `ProcessStatus`, `ProcessType`, `ProcessSubtype`, `Process`, `ProcessStatusHistory`, `Notification`.
+
+> `Notification` é por destinatário (uma linha por usuário, com `read` próprio). O
+> `ProcessService` dispara (via `NotificationsService.notifyCompany`) ao criar um
+> processo e ao mudar o status — para todos do escritório **menos** o autor da ação.
 Enums `UserRole` (`ADMIN` / `FINANCEIRO` / `OPERACIONAL`) e `ExpenseCategory`
 (9 categorias de despesa; o rótulo legível vive no frontend).
 

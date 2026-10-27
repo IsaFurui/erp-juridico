@@ -6,6 +6,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProcessTypeDto } from './dto/create-process-type.dto';
 import { UpdateProcessTypeDto } from './dto/update-process-type.dto';
+import { CreateProcessSubtypeDto } from './dto/create-process-subtype.dto';
+import { UpdateProcessSubtypeDto } from './dto/update-process-subtype.dto';
 
 @Injectable()
 export class ProcessTypeService {
@@ -56,5 +58,56 @@ export class ProcessTypeService {
     async remove(id: number) {
         await this.findById(id);
         return this.prisma.processType.delete({ where: { id } });
+    }
+
+    // ---------- subtipos ----------
+
+    async createSubtype(typeId: number, dto: CreateProcessSubtypeDto) {
+        await this.findById(typeId);
+
+        const existing = await this.prisma.processSubtype.findUnique({
+            where: {
+                processTypeId_name: { processTypeId: typeId, name: dto.name },
+            },
+        });
+        if (existing) {
+            throw new ConflictException('Subtipo já cadastrado neste tipo');
+        }
+
+        return this.prisma.processSubtype.create({
+            data: { processTypeId: typeId, name: dto.name },
+        });
+    }
+
+    async updateSubtype(
+        typeId: number,
+        subtypeId: number,
+        dto: UpdateProcessSubtypeDto,
+    ) {
+        await this.ensureSubtypeOfType(typeId, subtypeId);
+
+        return this.prisma.processSubtype.update({
+            where: { id: subtypeId },
+            data: {
+                ...(dto.name !== undefined && { name: dto.name }),
+            },
+        });
+    }
+
+    async removeSubtype(typeId: number, subtypeId: number) {
+        await this.ensureSubtypeOfType(typeId, subtypeId);
+        return this.prisma.processSubtype.delete({ where: { id: subtypeId } });
+    }
+
+    private async ensureSubtypeOfType(typeId: number, subtypeId: number) {
+        await this.findById(typeId);
+        const subtype = await this.prisma.processSubtype.findUnique({
+            where: { id: subtypeId },
+        });
+        // 404 também quando o subtipo existe mas é de outro tipo.
+        if (!subtype || subtype.processTypeId !== typeId) {
+            throw new NotFoundException('Subtipo não encontrado');
+        }
+        return subtype;
     }
 }

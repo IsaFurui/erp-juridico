@@ -21,9 +21,7 @@ import { ProcessStatusService } from './process-status.service';
 import { CreateProcessStatusDto } from './dto/create-process-status.dto';
 import { UpdateProcessStatusDto } from './dto/update-process-status.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../auth/enums/user-role.enum';
+import { PlatformGuard } from '../auth/guards/platform.guard';
 
 @ApiTags('process-status')
 @ApiBearerAuth()
@@ -36,8 +34,7 @@ export class ProcessStatusController {
     constructor(private readonly processStatusService: ProcessStatusService) {}
 
     @Post()
-    @UseGuards(RolesGuard)
-    @Roles(UserRole.ADMIN)
+    @UseGuards(PlatformGuard)
     @ApiOperation({
         summary: 'Cadastrar novo status de processo (apenas ADMIN)',
     })
@@ -68,8 +65,7 @@ export class ProcessStatusController {
     }
 
     @Patch(':id')
-    @UseGuards(RolesGuard)
-    @Roles(UserRole.ADMIN)
+    @UseGuards(PlatformGuard)
     @ApiOperation({ summary: 'Atualizar status de processo (apenas ADMIN)' })
     @ApiResponse({ status: 200, description: 'Status atualizado com sucesso' })
     @ApiResponse({ status: 403, description: 'Acesso negado' })
@@ -82,8 +78,7 @@ export class ProcessStatusController {
     }
 
     @Delete(':id')
-    @UseGuards(RolesGuard)
-    @Roles(UserRole.ADMIN)
+    @UseGuards(PlatformGuard)
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Remover status de processo (apenas ADMIN)' })
     @ApiResponse({ status: 204, description: 'Status removido com sucesso' })

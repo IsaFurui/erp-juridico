@@ -566,34 +566,34 @@
 <div class="wrap">
 
   <header class="masthead">
-    <p class="eyebrow">Dossiê atualizado · 24 out 2026 · branch feat/fase-4-dashboard · pós-Fase 4</p>
+    <p class="eyebrow">Dossiê atualizado · 25 out 2026 · branch feat/fase-5-config-catalogos · pós-config/catálogos</p>
     <h1>Dossiê ERP&nbsp;Jurídico</h1>
     <p class="deck">
-      ERP multi-empresa para escritórios de advocacia. A fronteira entre escritórios está
-      fechada e coberta por teste, e os quatro domínios de produto — clientes, processos,
-      financeiro e, agora, o dashboard — estão ponta a ponta. Resta só o endurecimento para
-      produção.
+      ERP multi-empresa para escritórios de advocacia. Todos os domínios de produto estão
+      ponta a ponta; os catálogos têm gestão (do root), o usuário edita o próprio perfil
+      (nome e foto), o app tem tema claro/escuro, a busca do topo funciona e há notificações
+      por evento de processo. Resta o endurecimento para produção.
     </p>
 
     <dl class="ficha">
       <div><dt>Backend</dt><dd>NestJS 11 · Prisma 7</dd></div>
       <div><dt>Frontend</dt><dd>React 19 · Vite 8</dd></div>
       <div><dt>Banco</dt><dd>PostgreSQL 16</dd></div>
-      <div><dt>Tabelas</dt><dd>10 · 6 migrations</dd></div>
-      <div><dt>Módulos Nest</dt><dd>10</dd></div>
-      <div><dt>Endpoints</dt><dd>44</dd></div>
-      <div><dt>Telas prontas</dt><dd>8 de 9</dd></div>
-      <div><dt>Testes</dt><dd>65 · + e2e</dd></div>
+      <div><dt>Tabelas</dt><dd>11 · 9 migrations</dd></div>
+      <div><dt>Módulos Nest</dt><dd>11</dd></div>
+      <div><dt>Endpoints</dt><dd>51</dd></div>
+      <div><dt>Telas prontas</dt><dd>10</dd></div>
+      <div><dt>Testes</dt><dd>72 · + e2e</dd></div>
     </dl>
 
     <div class="strip-block">
-      <div class="strip" role="img" aria-label="Dos 10 domínios do sistema: 7 prontos ponta a ponta, 3 só com API, nenhum não iniciado.">
+      <div class="strip" role="img" aria-label="Dos 10 domínios do sistema: todos com interface — 7 ponta a ponta e os 3 catálogos geridos pela plataforma.">
         <span class="s-ok"   style="flex:7" title="Autenticação, Usuários, Empresas, Clientes, Processos, Financeiro, Dashboard"></span>
-        <span class="s-wip"  style="flex:3" title="Status de processo, Tipos de processo, Subtipos"></span>
+        <span class="s-wip"  style="flex:3" title="Status, Tipos e Subtipos — geridos na tela de Catálogos (plataforma)"></span>
       </div>
       <div class="strip-key">
-        <span><i style="background:var(--ok)"></i>7 domínios ponta a ponta</span>
-        <span><i style="background:var(--wip)"></i>3 só com API, sem tela</span>
+        <span><i style="background:var(--ok)"></i>7 domínios de escritório ponta a ponta</span>
+        <span><i style="background:var(--wip)"></i>3 catálogos, geridos pelo root</span>
       </div>
     </div>
 
@@ -614,15 +614,18 @@
 
     <div class="callout">
       <p>
-        <b>O que mudou desde o levantamento anterior (pós-Fase 3).</b> A Fase 4 entregou o
-        <code>dashboard</code>: a primeira tela deixou de ser o "em construção" e virou a visão
-        do escritório — cards de KPI (processos em aberto, encerrados e ganho no mês, clientes
-        ativos, valor em curso), um donut de processos por status, atividade recente (as últimas
-        mudanças de status, de quem e quando) e, para quem pode, a despesa do mês. Tudo vem
-        agregado do backend num <code>GET /dashboard</code> só, sem nenhuma migration (os dados
-        já existiam). O bloco financeiro é gated: <code>OPERACIONAL</code> recebe
-        <code>finance: null</code> e a tela esconde esses números. Este documento descreve o
-        estado da branch <code>feat/fase-4-dashboard</code>.
+        <b>O que mudou desde o levantamento anterior (pós-Fase 4).</b> Entrou a camada de
+        administração e conta: a tela de <strong>Catálogos</strong> (root gerencia status, tipos
+        e subtipos — e a escrita desses catálogos passou a ser exclusiva da plataforma, via
+        <code>PlatformGuard</code>); <strong>Configurações</strong>, onde cada usuário edita o
+        próprio nome e a <strong>foto de perfil</strong> (base64 reduzido no navegador, guardado
+        em <code>User.avatarUrl</code>, via <code>PATCH /users/me</code>); e o <strong>tema
+        claro/escuro</strong> no topo, que persiste no <code>localStorage</code>. Também nasceu
+        o CRUD de <strong>subtipo</strong> no backend. Depois disso, a <strong>busca do topo</strong>
+        virou funcional (processos + clientes) e entrou o módulo de <strong>notificações</strong>:
+        uma tabela nova, geradas quando um processo é criado ou muda de status — para todos do
+        escritório menos quem fez a ação, com contador de não-lidas no sino. Este documento
+        descreve o estado da branch <code>feat/fase-5-config-catalogos</code>.
       </p>
     </div>
 
@@ -731,7 +734,7 @@ npm run dev              <span class="c"># http://localhost:5173</span></pre>
 
     <h3>Testes</h3>
     <pre class="sh">cd backend
-npm test                 <span class="c"># 65 testes, não precisa de banco</span>
+npm test                 <span class="c"># 72 testes, não precisa de banco</span>
 npm run test:e2e         <span class="c"># isolamento, processos, despesas e dashboard — precisa do Postgres de pé</span>
 
 cd ../frontend
@@ -1123,7 +1126,7 @@ npm run lint</pre>
           <tr><td class="tight">Swagger em <code>/api/docs</code></td><td>Pronto, com <code>addBearerAuth()</code> e descrições em todas as rotas.</td></tr>
           <tr><td class="tight">ValidationPipe global</td><td>Pronto — <code>whitelist</code>, <code>forbidNonWhitelisted</code> e <code>transform</code> ligados.</td></tr>
           <tr><td class="tight">Seed do Prisma</td><td>Catálogos + administrador da plataforma (controlado por <code>PLATFORM_ADMIN_PASSWORD</code>). Idempotente, e redefine a senha do root quando rodado de novo.</td></tr>
-          <tr><td class="tight">Testes</td><td><strong>65 testes unitários</strong> (escopo de tenant, guards de escopo, paginação de clientes, 17 do serviço de processos, 8 do de despesas e 3 do dashboard — agregação e gating do financeiro) + <strong>e2e</strong> com ~39 casos (26 de isolamento + 5 de processos + 6 de despesas + 2 do dashboard, incluindo o <code>finance: null</code> do OPERACIONAL), que precisa do Postgres.</td></tr>
+          <tr><td class="tight">Testes</td><td><strong>72 testes unitários</strong> (escopo de tenant, guards, paginação, processos, despesas, dashboard, perfil e notificações) + <strong>e2e</strong> com <strong>47 casos</strong> (isolamento, processos, despesas, dashboard, perfil/catálogos e notificações — inclui o 403 do ADMIN escrevendo catálogo e o autor que não se auto-notifica). Rodam em série (<code>maxWorkers: 1</code>), porque compartilham um Postgres.</td></tr>
           <tr><td class="tight">docker-compose</td><td>Postgres + backend. Falta o frontend e faltam as env vars de JWT no serviço do backend — o container do backend não sobe.</td></tr>
           <tr><td class="tight">Proxy de dev</td><td>Vite reescreve <code>/api</code> → <code>localhost:3000</code>. Funciona; esconde a falta de CORS.</td></tr>
           <tr><td class="tight">Design tokens / UI kit</td><td>CSS próprio, sem biblioteca. Primitivos em <code>components/ui</code>: Button, Input, Badge, Modal, Icon, ErrorBoundary.</td></tr>
@@ -1138,7 +1141,7 @@ npm run lint</pre>
     <div class="sec-head"><span class="sec-num">03</span><h2>API implementada</h2></div>
 
     <p class="lead">
-      44 endpoints em 9 controllers. A coluna <strong>proteção</strong> agora tem dois eixos:
+      52 endpoints em 10 controllers. A coluna <strong>proteção</strong> agora tem dois eixos:
       o <em>escopo</em> da sessão (escritório ou plataforma) e, dentro de um escritório, o
       <em>papel</em>. <span class="m">tenant</span> quer dizer que a rota exige sessão de
       escritório e lê o <code>companyId</code> do token;
@@ -1162,6 +1165,7 @@ npm run lint</pre>
           <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/users/me</code></td><td class="tight">tenant</td><td>Sessão da plataforma recebe 403: o <code>sub</code> dela é id de outra tabela.</td></tr>
           <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/users?companyId=</code></td><td class="tight">ADMIN ou plataforma</td><td>ADMIN lê a própria empresa; informar outra dá 403. Para a plataforma o parâmetro é obrigatório — sem ele, 400, nunca “lista tudo”.</td></tr>
           <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/users/:id</code></td><td class="tight">ADMIN ou plataforma</td><td>Usuário de outra empresa responde <code>404</code>, não 403.</td></tr>
+          <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/users/me</code></td><td class="tight">tenant</td><td>O próprio usuário edita nome e foto (<code>avatarUrl</code>, data URL base64). Distinto de <code>PATCH /users/:id</code> (ADMIN).</td></tr>
           <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/users/me/password</code></td><td class="tight">tenant</td><td>Valida a senha atual com bcrypt. <code>204</code>.</td></tr>
 
           <tr class="group"><th colspan="4">company — exclusivo da plataforma</th></tr>
@@ -1187,14 +1191,14 @@ npm run lint</pre>
           <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/processes/:id/status</code></td><td class="tight">ADMIN · OPERACIONAL</td><td>Rota dedicada da troca de status: grava a nova linha no histórico. Se o novo status for final, aceita um <code>totalAmount</code> manual — e só registra “ajustado” quando ele diverge de fato do previsto.</td></tr>
           <tr><td class="tight"><span class="meth delete">DELETE</span></td><td class="tight"><code>/processes/:id</code></td><td class="tight">ADMIN</td><td>Delete <strong>físico</strong> — <code>Process</code> não tem flag <code>active</code>.</td></tr>
 
-          <tr class="group"><th colspan="4">process-status</th></tr>
+          <tr class="group"><th colspan="4">process-status — catálogo global · leitura aberta, escrita só plataforma</th></tr>
           <tr><td class="tight"><span class="meth post">POST</span></td><td class="tight"><code>/process-status</code></td><td class="tight">ADMIN</td><td>—</td></tr>
           <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/process-status</code></td><td class="tight">JWT</td><td>Leitura liberada na Fase 1 — a tela de processo precisa do combo, e um <code>OPERACIONAL</code> pode criar processo.</td></tr>
           <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/process-status/:id</code></td><td class="tight">JWT</td><td>—</td></tr>
           <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/process-status/:id</code></td><td class="tight">ADMIN</td><td>—</td></tr>
           <tr><td class="tight"><span class="meth delete">DELETE</span></td><td class="tight"><code>/process-status/:id</code></td><td class="tight">ADMIN</td><td>Delete físico. Com processo vinculado, o <code>Restrict</code> vira erro 500.</td></tr>
 
-          <tr class="group"><th colspan="4">process-type</th></tr>
+          <tr class="group"><th colspan="4">process-type — catálogo global · escrita só plataforma · inclui CRUD de subtipo</th></tr>
           <tr><td class="tight"><span class="meth post">POST</span></td><td class="tight"><code>/process-type</code></td><td class="tight">ADMIN</td><td>—</td></tr>
           <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/process-type</code></td><td class="tight">JWT</td><td>Leitura liberada — o critério certo, divergente de <code>process-status</code>.</td></tr>
           <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/process-type/:id</code></td><td class="tight">JWT</td><td>—</td></tr>
@@ -1460,26 +1464,27 @@ npm run lint</pre>
       </li>
 
       <li class="sev-alto">
-        <h4>Catálogo global ou por escritório? <span class="chip c-todo">segue em aberto</span></h4>
+        <h4>Catálogo global ou por escritório? <span class="chip c-ok">decidido: global</span></h4>
         <p>
-          A Fase 2 embarcou com o catálogo global: <code>ProcessStatus</code> e
-          <code>ProcessType</code> não têm <code>companyId</code>, e o
-          <code>description</code> / <code>name</code> é único global. Consequência: um ADMIN
-          que renomeia um status muda para todos os escritórios, e ninguém pode ter um status
-          próprio. Manter global e tirar a escrita dos ADMINs de escritório, ou adicionar
-          <code>companyId</code> opcional (nulo = padrão do sistema) — as duas são defensáveis,
-          mas são caminhos diferentes, e a tela de processos já consome esse catálogo como ele
-          está.
+          Resolvido: o catálogo fica <strong>global</strong> e quem gerencia é o
+          <strong>root</strong>. <code>ProcessStatus</code>/<code>ProcessType</code>/
+          <code>ProcessSubtype</code> seguem sem <code>companyId</code>, mas a <strong>escrita
+          passou a ser exclusiva da plataforma</strong> (<code>PlatformGuard</code>) — um ADMIN
+          de escritório não edita mais catálogo de todo mundo; só lê. A gestão vive na tela de
+          <strong>Catálogos</strong> da plataforma (abas Status/Tipos/Subtipos). Catálogo por
+          escritório fica descartado por ora.
         </p>
       </li>
 
       <li class="sev-medio">
-        <h4>Quem pode ver o processo de quem? <span class="chip c-todo">regra de negócio</span></h4>
+        <h4>Cada advogado só vê a própria carteira? <span class="chip c-todo">regra de negócio</span></h4>
         <p>
-          O isolamento é por empresa e o RBAC é por papel. Não existe noção de advogado
-          responsável: <code>Process</code> não tem <code>userId</code>. Se um escritório
-          precisa que cada advogado veja só a própria carteira, isso é coluna nova mais
-          filtro — e sai mais barato decidir antes da tela de processos que depois.
+          Meio resolvido: o processo agora tem <strong>advogado responsável</strong>
+          (<code>Process.responsibleId → User</code>, opcional; no cadastro já vem o próprio
+          usuário), exibido no cartão e no detalhe. O que fica em aberto é a <strong>visão
+          restrita</strong>: hoje todos do escritório veem todos os processos. Transformar o
+          responsável em filtro de visibilidade (cada um só a sua carteira) é a decisão de
+          RBAC que sobra — é só um <code>where</code> a mais, mas muda o produto.
         </p>
       </li>
 
@@ -1507,10 +1512,10 @@ npm run lint</pre>
   </section>
 
   <footer>
-    <span>Levantado a partir do código em feat/fase-4-dashboard, depois da Fase 4</span>
-    <span>backend: 10 módulos · 44 endpoints</span>
-    <span>frontend: 8 telas · 6 primitivos de UI</span>
-    <span>banco: 10 tabelas · 6 migrations · 65 testes + e2e</span>
+    <span>Levantado a partir do código em feat/fase-5-config-catalogos</span>
+    <span>backend: 11 módulos · 52 endpoints</span>
+    <span>frontend: 10 telas · 7 primitivos de UI</span>
+    <span>banco: 11 tabelas · 9 migrations · 72 testes + e2e</span>
   </footer>
 
 </div>

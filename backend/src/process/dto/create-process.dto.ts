@@ -51,6 +51,15 @@ export class CreateProcessDto {
     subtypeId?: number;
 
     @ApiPropertyOptional({
+        example: 4,
+        description: 'ID do advogado responsável (usuário do escritório)',
+    })
+    @IsOptional()
+    @IsInt()
+    @IsPositive()
+    responsibleId?: number;
+
+    @ApiPropertyOptional({
         example: 5000,
         description: 'Valor fixo (honorários)',
     })

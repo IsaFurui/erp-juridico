@@ -120,4 +120,29 @@ describe('UsersService — escopo de tenant', () => {
             ).rejects.toBeInstanceOf(NotFoundException);
         });
     });
+
+    describe('updateProfile', () => {
+        it('grava nome e avatar no id dado (o do token)', async () => {
+            await service.updateProfile(5, {
+                name: 'Isabelle',
+                avatarUrl: 'data:image/jpeg;base64,abc',
+            });
+
+            expect(update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: { id: 5 },
+                    data: {
+                        name: 'Isabelle',
+                        avatarUrl: 'data:image/jpeg;base64,abc',
+                    },
+                }),
+            );
+        });
+
+        it('avatar vazio remove a foto (null)', async () => {
+            await service.updateProfile(5, { avatarUrl: '' });
+
+            expect(update.mock.calls[0][0].data).toEqual({ avatarUrl: null });
+        });
+    });
 });

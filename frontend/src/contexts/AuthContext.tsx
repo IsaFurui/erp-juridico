@@ -8,9 +8,10 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { decodeJwt, isTokenExpired, type Session } from '../lib/jwt'
+import { decodeJwt, isPlatform, isTokenExpired, type Session } from '../lib/jwt'
 import {
   authApi,
+  usersApi,
   registerUnauthorizedHandler,
   setAuthToken,
   type LoginPayload,
@@ -18,13 +19,21 @@ import {
 } from '../lib/api'
 import { STORAGE_KEYS } from '../lib/constants'
 
+/** Nome e foto do usuário de escritório — vêm do banco, não do token. */
+export interface Profile {
+  name: string
+  avatarUrl: string | null
+}
+
 interface AuthContextValue {
   token: string | null
   user: Session | null
+  profile: Profile | null
   isAuthenticated: boolean
   login: (payload: LoginPayload) => Promise<void>
   loginPlatform: (payload: PlatformLoginPayload) => Promise<void>
   logout: () => void
+  refreshProfile: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -44,13 +53,26 @@ function readStoredToken(): string | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => readStoredToken())
+  const [profile, setProfile] = useState<Profile | null>(null)
   const user = useMemo(() => (token ? decodeJwt(token) : null), [token])
 
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEYS.authToken)
     setAuthToken(null)
     setToken(null)
+    setProfile(null)
   }, [])
+
+  // Só o escritório tem perfil (nome/foto); a plataforma vive noutra tabela.
+  const refreshProfile = useCallback(() => {
+    if (!user || isPlatform(user)) return
+    usersApi
+      .me()
+      .then((u) => setProfile({ name: u.name, avatarUrl: u.avatarUrl ?? null }))
+      .catch(() => {
+        /* mantém o fallback (iniciais/login) */
+      })
+  }, [user])
 
   const persist = useCallback((access_token: string) => {
     localStorage.setItem(STORAGE_KEYS.authToken, access_token)
@@ -79,16 +101,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerUnauthorizedHandler(logout)
   }, [token, logout])
 
+  useEffect(() => {
+    refreshProfile()
+  }, [refreshProfile])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       token,
       user,
+      profile,
       isAuthenticated: Boolean(token),
       login,
       loginPlatform,
       logout,
+      refreshProfile,
     }),
-    [token, user, login, loginPlatform, logout],
+    [token, user, profile, login, loginPlatform, logout, refreshProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

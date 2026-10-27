@@ -50,6 +50,39 @@
   }
 }
 
+/* Tema escuro — ativado por data-theme="dark" no <html> (ThemeContext). */
+html[data-theme='dark'] {
+  color-scheme: dark;
+
+  --background: #10141a;
+  --card: #171c24;
+  --card-hover: #1f2731;
+  --foreground: #e7ebf0;
+  --muted-foreground: #98a3b0;
+  --border: #2a323d;
+  --border-light: #222a34;
+
+  --primary: #4f8cf7;
+  --primary-foreground: #ffffff;
+  --primary-light: #1b2740;
+  --secondary: #98a3b0;
+  --secondary-light: #222a34;
+  --sidebar-bg: #141922;
+  --sidebar-text: #a7b2bf;
+  --sidebar-active: #1c2740;
+  --sidebar-active-text: #8fb4fb;
+  --topbar-bg: #171c24;
+
+  --success: #34d399;
+  --success-light: #122a20;
+  --warning: #fbbf24;
+  --warning-light: #2a2213;
+  --destructive: #f87171;
+  --destructive-light: #2b1917;
+  --info: #60a5fa;
+  --info-light: #16243b;
+}
+
 #root {
   min-height: 100svh;
 }

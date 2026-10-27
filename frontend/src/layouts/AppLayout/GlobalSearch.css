@@ -1,0 +1,67 @@
+.global-search {
+  position: relative;
+}
+
+.global-search-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(360px, 80vw);
+  z-index: 40;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  padding: 6px;
+  animation: ui-pop-in 0.14s ease;
+}
+
+.global-search-group + .global-search-group {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-light, var(--border));
+}
+
+.global-search-label {
+  margin: 0;
+  padding: 6px 10px 2px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-foreground);
+}
+
+.global-search-opt {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font: inherit;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.global-search-opt:hover {
+  background: var(--card-hover);
+}
+
+.global-search-opt-main {
+  font-size: 14px;
+  color: var(--foreground);
+}
+
+.global-search-opt-sub {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.global-search-hint {
+  margin: 0;
+  padding: 10px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}

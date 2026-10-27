@@ -166,6 +166,8 @@ function ProcessDetailPage() {
               <dd>{process.type.name}</dd>
               <dt>Subtipo</dt>
               <dd>{process.subtype?.name ?? '—'}</dd>
+              <dt>Responsável</dt>
+              <dd>{process.responsible?.name ?? '—'}</dd>
               <dt>Aberto em</dt>
               <dd>{formatDate(process.createdAt)}</dd>
             </dl>

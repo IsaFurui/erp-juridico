@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UserRole as PrismaUserRole } from '../../generated/prisma/enums';
 import { UserRole } from '../auth/enums/user-role.enum';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import {
     isPlatform,
@@ -23,6 +24,7 @@ const PUBLIC_SELECT = {
     name: true,
     login: true,
     role: true,
+    avatarUrl: true,
     companyId: true,
 };
 
@@ -73,6 +75,16 @@ export class UsersService {
         });
     }
 
+    /** Lista enxuta (id/nome/papel) dos colegas do escritório — para pickers
+     * como o de advogado responsável. Acessível a qualquer usuário do tenant. */
+    listColleagues(companyId: number) {
+        return this.prisma.user.findMany({
+            where: { companyId },
+            select: { id: true, name: true, role: true },
+            orderBy: { name: 'asc' },
+        });
+    }
+
     /**
      * A empresa alvo sai do token de quem chama. A sessão da plataforma não
      * tem empresa, então é a única que precisa — e pode — informar uma.
@@ -98,6 +110,21 @@ export class UsersService {
             data: {
                 ...(dto.name && { name: dto.name }),
                 ...(dto.role && { role: dto.role }),
+            },
+            select: PUBLIC_SELECT,
+        });
+    }
+
+    /** O próprio usuário edita nome e foto. O id vem do token, não do body. */
+    async updateProfile(id: number, dto: UpdateProfileDto) {
+        return this.prisma.user.update({
+            where: { id },
+            data: {
+                ...(dto.name !== undefined && { name: dto.name }),
+                ...(dto.avatarUrl !== undefined && {
+                    // String vazia remove a foto.
+                    avatarUrl: dto.avatarUrl === '' ? null : dto.avatarUrl,
+                }),
             },
             select: PUBLIC_SELECT,
         });

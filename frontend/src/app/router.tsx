@@ -11,6 +11,8 @@ import ClientsPage from '../features/clients/ClientsPage'
 import ProcessesPage from '../features/processes/ProcessesPage'
 import ProcessDetailPage from '../features/processes/ProcessDetailPage'
 import FinanceExpensesPage from '../features/finance/FinanceExpensesPage'
+import SettingsPage from '../features/settings/SettingsPage'
+import CatalogsPage from '../features/admin/catalogs/CatalogsPage'
 import { APP_ROUTES } from '../lib/constants'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -129,24 +131,23 @@ function AppRouter() {
         <Route
           path={APP_ROUTES.settings}
           element={
-            <AdminRoute>
-              <ComingSoon title="Configurações" />
-            </AdminRoute>
+            <TenantRoute>
+              <SettingsPage />
+            </TenantRoute>
+          }
+        />
+        <Route
+          path={APP_ROUTES.catalogs}
+          element={
+            <PlatformRoute>
+              <CatalogsPage />
+            </PlatformRoute>
           }
         />
       </Route>
 
       <Route path="*" element={<Navigate to={APP_ROUTES.dashboard} replace />} />
     </Routes>
-  )
-}
-
-function ComingSoon({ title }: { title: string }) {
-  return (
-    <div className="ui-card">
-      <h2 className="page-title">{title}</h2>
-      <p className="ui-empty">Módulo em construção.</p>
-    </div>
   )
 }
 

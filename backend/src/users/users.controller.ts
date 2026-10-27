@@ -19,6 +19,7 @@ import {
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -50,6 +51,16 @@ export class UsersController {
         return this.usersService.findById(user.sub);
     }
 
+    // Lista enxuta dos colegas do escritório (id/nome/papel) — para o picker de
+    // advogado responsável. Qualquer usuário do tenant pode ler.
+    @Get('colleagues')
+    @UseGuards(RequireTenantGuard)
+    @ApiOperation({ summary: 'Colegas do escritório (para seletores)' })
+    @ApiResponse({ status: 200 })
+    listColleagues(@CurrentTenant() user: TenantJwtPayload) {
+        return this.usersService.listColleagues(user.companyId);
+    }
+
     // A empresa vem do token, nunca da URL: antes essa rota era
     // GET /users/company/:companyId e bastava trocar o número para ler os
     // usuários de outro escritório. A plataforma, que não tem empresa, é a
@@ -74,6 +85,19 @@ export class UsersController {
         companyId?: number,
     ) {
         return this.usersService.listByCompany(actor, companyId);
+    }
+
+    // Antes de ':id' e de 'me/password' — rota literal precede a parametrizada.
+    @Patch('me')
+    @UseGuards(RequireTenantGuard)
+    @ApiOperation({ summary: 'Editar o próprio perfil (nome e foto)' })
+    @ApiResponse({ status: 200, description: 'Perfil atualizado' })
+    @ApiResponse({ status: 403, description: 'Sessão da plataforma' })
+    updateProfile(
+        @CurrentTenant() user: TenantJwtPayload,
+        @Body() dto: UpdateProfileDto,
+    ) {
+        return this.usersService.updateProfile(user.sub, dto);
     }
 
     @Patch(':id')
