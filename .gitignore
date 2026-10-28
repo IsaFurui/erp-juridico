@@ -1,3 +1,6 @@
 
 # Workspace de execução de planos (superpowers)
 .superpowers/
+
+# OS
+.DS_Store

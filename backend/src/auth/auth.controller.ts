@@ -14,6 +14,7 @@ import {
     ApiResponse,
     ApiBearerAuth,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { PlatformAdminService } from '../platform-admin/platform-admin.service';
 import { LoginDto } from './dto/login.dto';
@@ -40,6 +41,8 @@ export class AuthController {
         private readonly platformAdminService: PlatformAdminService,
     ) {}
 
+    // Rotas públicas: um teto apertado por IP freia força bruta de senha.
+    @Throttle({ default: { limit: 8, ttl: 60000 } })
     @Post('login')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Autenticar usuário de um escritório' })
@@ -52,6 +55,7 @@ export class AuthController {
         return this.authService.login(dto);
     }
 
+    @Throttle({ default: { limit: 8, ttl: 60000 } })
     @Post('platform/login')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({

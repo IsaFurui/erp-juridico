@@ -1163,6 +1163,7 @@ npm run lint</pre>
 
           <tr class="group"><th colspan="4">users</th></tr>
           <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/users/me</code></td><td class="tight">tenant</td><td>Sessão da plataforma recebe 403: o <code>sub</code> dela é id de outra tabela.</td></tr>
+          <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/users/colleagues</code></td><td class="tight">tenant</td><td>Lista enxuta (id/nome/papel) dos colegas do escritório — alimenta o seletor de advogado responsável. Qualquer papel lê (diferente de <code>GET /users</code>, que é ADMIN).</td></tr>
           <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/users?companyId=</code></td><td class="tight">ADMIN ou plataforma</td><td>ADMIN lê a própria empresa; informar outra dá 403. Para a plataforma o parâmetro é obrigatório — sem ele, 400, nunca “lista tudo”.</td></tr>
           <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/users/:id</code></td><td class="tight">ADMIN ou plataforma</td><td>Usuário de outra empresa responde <code>404</code>, não 403.</td></tr>
           <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/users/me</code></td><td class="tight">tenant</td><td>O próprio usuário edita nome e foto (<code>avatarUrl</code>, data URL base64). Distinto de <code>PATCH /users/:id</code> (ADMIN).</td></tr>
@@ -1216,6 +1217,11 @@ npm run lint</pre>
 
           <tr class="group"><th colspan="4">dashboard — sessão de escritório</th></tr>
           <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/dashboard</code></td><td class="tight">tenant</td><td>Indicadores agregados da empresa num payload só: KPIs, processos por status, atividade recente e <code>finance</code> (despesa do mês + por categoria) — este último só para ADMIN/FINANCEIRO; <code>OPERACIONAL</code> recebe <code>null</code>.</td></tr>
+
+          <tr class="group"><th colspan="4">notifications — sessão de escritório</th></tr>
+          <tr><td class="tight"><span class="meth get">GET</span></td><td class="tight"><code>/notifications</code></td><td class="tight">tenant</td><td>As próprias notificações (até 20, mais recentes) + <code>unreadCount</code>. Geradas quando um processo é criado ou muda de status — para todos do escritório menos o autor.</td></tr>
+          <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/notifications/:id/read</code></td><td class="tight">tenant</td><td>Marca uma como lida (escopada pelo dono). <code>204</code>.</td></tr>
+          <tr><td class="tight"><span class="meth patch">PATCH</span></td><td class="tight"><code>/notifications/read-all</code></td><td class="tight">tenant</td><td>Marca todas as próprias como lidas. <code>204</code>.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1254,36 +1260,37 @@ npm run lint</pre>
         <span class="where">users.service.ts:67</span>
       </li>
 
-      <li class="sev-alto">
-        <h4>Sem CORS — só funciona atrás do proxy do Vite <span class="chip c-wip">alto</span></h4>
+      <li class="sev-medio">
+        <h4>CORS habilitado <span class="chip c-ok">resolvido</span></h4>
         <p>
-          <code>main.ts</code> não chama <code>app.enableCors()</code>. Em dev o proxy do Vite
-          esconde isso porque tudo sai da mesma origem. No dia em que o front subir num
-          domínio separado, todas as requests morrem no preflight.
+          <code>main.ts</code> agora chama <code>enableCors()</code> com a origem vinda de
+          <code>CORS_ORIGIN</code> (lista separada por vírgula; vazio libera geral para o dev
+          atrás do proxy do Vite). O front pode subir num domínio separado sem morrer no
+          preflight.
         </p>
-        <span class="where">backend/src/main.ts:7</span>
+        <span class="where">backend/src/main.ts</span>
       </li>
 
-      <li class="sev-alto">
-        <h4>O compose não sobe <span class="chip c-wip">alto</span></h4>
+      <li class="sev-medio">
+        <h4>Compose do backend sobe <span class="chip c-ok">resolvido</span></h4>
         <p>
-          O serviço <code>backend</code> só recebe <code>DATABASE_URL</code>.
-          <code>JwtModule</code> e <code>JwtStrategy</code> usam <code>getOrThrow</code> em
-          <code>JWT_SECRET</code> e <code>JWT_EXPIRES_IN</code>, então o container quebra no
-          boot. O frontend não está no compose.
+          O serviço <code>backend</code> passou a receber <code>JWT_SECRET</code>,
+          <code>JWT_EXPIRES_IN</code> e as vars de <code>PLATFORM_ADMIN_*</code> (com defaults
+          de dev), então o container não quebra mais no boot. Sobra pôr o
+          <strong>frontend</strong> no compose.
         </p>
-        <span class="where">docker-compose.yml:26</span>
+        <span class="where">docker-compose.yml</span>
       </li>
 
-            <li class="sev-medio">
-        <h4>Deletar catálogo em uso devolve 500 <span class="chip c-todo">médio</span></h4>
+      <li class="sev-medio">
+        <h4>Erros de FK/unique viram 409, não 500 <span class="chip c-ok">resolvido</span></h4>
         <p>
-          <code>DELETE</code> em status e tipo faz delete físico. Com um processo apontando
-          para o registro, o <code>onDelete: Restrict</code> estoura um
-          <code>PrismaClientKnownRequestError</code> que ninguém captura — vira 500 em vez de
-          409. Agora que processos existem de verdade, é fácil de encostar nisso.
+          Um <code>PrismaExceptionFilter</code> global traduz o
+          <code>PrismaClientKnownRequestError</code>: unique (P2002) e FK (P2003) → 409,
+          não-encontrado (P2025) → 404. Então apagar um status/tipo em uso devolve 409 em vez
+          do 500 de antes.
         </p>
-        <span class="where">process-status.service.ts:53 · process-type.service.ts:58</span>
+        <span class="where">backend/src/common/filters/prisma-exception.filter.ts</span>
       </li>
 
       <li class="sev-medio">
@@ -1426,15 +1433,11 @@ npm run lint</pre>
         <header>
           <span class="pn">Fase 5</span>
           <h3>Pronto para produção</h3>
-          <span class="est">3–4 dias</span>
+          <span class="est"><span class="chip c-wip">em andamento</span></span>
         </header>
         <ul>
-          <li><code>enableCors()</code> com origem por env var.</li>
-          <li>Compose completo: env de JWT no backend, serviço do frontend, <code>.env</code> de verdade fora do repo.</li>
-          <li>Capturar erros de FK do Prisma num <code>ExceptionFilter</code> → 409 em vez de 500.</li>
-          <li>Rate limit nos dois logins (<code>@nestjs/throttler</code>) — são as únicas rotas públicas, e uma delas é a do root.</li>
-          <li>Auditoria: <code>createdBy</code> ou log de eventos, para explicar alterações depois.</li>
-          <li>Terminar o <code>backend/CLAUDE.md</code> e escrever o README da raiz, que não existe — o passo a passo da seção 00 é o conteúdo dele.</li>
+          <li><b>Feito:</b> <code>enableCors()</code> por <code>CORS_ORIGIN</code>; <code>JWT_*</code> e <code>PLATFORM_ADMIN_*</code> no serviço <code>backend</code> do compose; <code>PrismaExceptionFilter</code> global (FK/unique → 409); rate-limit nos dois logins (<code>@nestjs/throttler</code>, 8/min, desligado em teste); <strong>README</strong> da raiz; e um <strong>CI</strong> (GitHub Actions) que roda lint + testes + build nas duas pontas.</li>
+          <li><b>Sobra:</b> serviço do <strong>frontend</strong> no compose; <strong>auditoria</strong> (<code>createdBy</code> ou log de eventos) para explicar alterações depois.</li>
         </ul>
       </div>
     </div>

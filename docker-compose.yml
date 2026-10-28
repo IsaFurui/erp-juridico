@@ -25,6 +25,14 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/legal_erp
+      # Sem estes, o boot quebrava (getOrThrow em JWT_SECRET/EXPIRES_IN).
+      # Valores vêm do ambiente/.env da raiz; os :- são defaults de dev.
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      PLATFORM_ADMIN_NAME: ${PLATFORM_ADMIN_NAME:-Administrador da Plataforma}
+      PLATFORM_ADMIN_LOGIN: ${PLATFORM_ADMIN_LOGIN:-root}
+      PLATFORM_ADMIN_PASSWORD: ${PLATFORM_ADMIN_PASSWORD:-}
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
     depends_on:
       postgres:
         condition: service_healthy
