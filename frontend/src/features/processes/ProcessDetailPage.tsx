@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
@@ -6,7 +6,7 @@ import Icon from '../../components/ui/Icon'
 import { formatBRL } from '../../lib/money'
 import { APP_ROUTES } from '../../lib/constants'
 import type { ProcessDetail, ProcessStatus } from '../../lib/api'
-import { getProcess, listProcessStatuses } from './processes.api'
+import { getProcess, listProcessStatuses, syncProcess } from './processes.api'
 import { statusVariant } from './status-variant'
 import ProcessFormModal from './ProcessFormModal'
 import ProcessStatusModal from './ProcessStatusModal'
@@ -19,8 +19,29 @@ function formatDate(value: string): string {
     : date.toLocaleDateString('pt-BR')
 }
 
+function formatDateTime(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('pt-BR')
+}
+
 function toNumber(value: string | null): number {
   return Number(value ?? 0)
+}
+
+// Texto do estado da última consulta ao DataJud.
+function syncStateLabel(p: ProcessDetail): string {
+  switch (p.datajudSyncStatus) {
+    case 'SYNCED':
+      return p.datajudSyncedAt
+        ? `Sincronizado em ${formatDateTime(p.datajudSyncedAt)}.`
+        : 'Sincronizado.'
+    case 'NOT_FOUND':
+      return 'Não encontrado na base pública — pode estar em sigilo ou ainda não ter sido carregado.'
+    case 'ERROR':
+      return 'A última consulta falhou. Vamos tentar de novo automaticamente.'
+    default:
+      return 'Ainda não sincronizado com o DataJud.'
+  }
 }
 
 function ProcessDetailPage() {
@@ -36,6 +57,18 @@ function ProcessDetailPage() {
 
   const [editOpen, setEditOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
+
+  // Sincronização sob demanda: dispara (202) e faz polling do processo até o
+  // estado mudar, porque a consulta ao DataJud leva ~40s.
+  const [syncing, setSyncing] = useState(false)
+  const mountedRef = useRef(true)
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+      if (pollRef.current) clearTimeout(pollRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     listProcessStatuses()
@@ -71,6 +104,48 @@ function ProcessDetailPage() {
   }, [processId, reloadKey])
 
   const refresh = () => setReloadKey((k) => k + 1)
+
+  const handleSync = async () => {
+    if (!process || syncing) return
+    setSyncing(true)
+    // nextSyncAt muda em qualquer desfecho (SYNCED/NOT_FOUND/ERROR), então é o
+    // sinal mais confiável de que a consulta terminou.
+    const beforeNext = process.datajudNextSyncAt
+    const beforeStatus = process.datajudSyncStatus
+    const pid = process.id
+
+    try {
+      await syncProcess(pid)
+    } catch {
+      if (mountedRef.current) setSyncing(false)
+      return
+    }
+
+    const deadline = Date.now() + 90_000
+    const poll = () => {
+      pollRef.current = setTimeout(() => {
+        getProcess(pid)
+          .then((fresh) => {
+            if (!mountedRef.current) return
+            const done =
+              fresh.datajudNextSyncAt !== beforeNext ||
+              fresh.datajudSyncStatus !== beforeStatus
+            if (done || Date.now() > deadline) {
+              setProcess(fresh)
+              setSyncing(false)
+            } else {
+              poll()
+            }
+          })
+          .catch(() => {
+            if (!mountedRef.current) return
+            if (Date.now() > deadline) setSyncing(false)
+            else poll()
+          })
+      }, 4000)
+    }
+    poll()
+  }
 
   if (Number.isNaN(processId)) {
     return (
@@ -208,6 +283,49 @@ function ProcessDetailPage() {
                 Total ajustado no encerramento. A soma de Entrada + Esperado era{' '}
                 {formatBRL(derived)}.
               </p>
+            )}
+          </section>
+
+          <section className="ui-card detail-panel">
+            <div className="detail-datajud-head">
+              <h2 className="detail-panel-title">Andamentos (DataJud)</h2>
+              {process.confidentiality !== 'CONFIDENTIAL' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSync}
+                  disabled={syncing}
+                >
+                  {syncing ? 'Atualizando…' : 'Atualizar agora'}
+                </Button>
+              )}
+            </div>
+
+            {process.confidentiality === 'CONFIDENTIAL' ? (
+              <p className="ui-empty">
+                Monitoramento automático desativado (processo sigiloso). O
+                acompanhamento é manual.
+              </p>
+            ) : (
+              <>
+                <p className="detail-datajud-state">
+                  {syncStateLabel(process)}
+                </p>
+                {process.movements.length === 0 ? (
+                  <p className="ui-empty">Nenhum andamento importado ainda.</p>
+                ) : (
+                  <ol className="timeline">
+                    {process.movements.map((m) => (
+                      <li key={m.id} className="tl-item">
+                        <span className="tl-date">
+                          {formatDate(m.occurredAt)}
+                        </span>
+                        <span className="tl-status">{m.name}</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </>
             )}
           </section>
         </div>

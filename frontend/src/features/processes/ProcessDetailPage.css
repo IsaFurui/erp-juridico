@@ -48,6 +48,24 @@
   gap: 8px;
 }
 
+.detail-datajud-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.detail-datajud-head .detail-panel-title {
+  margin: 0;
+}
+
+.detail-datajud-state {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
 .detail-name {
   margin: 0 0 8px;
   font-size: 22px;

@@ -170,9 +170,29 @@ export interface ProcessStatusHistoryItem {
   user: { id: number; name: string }
 }
 
-/** Detalhe = item + a linha do tempo de status. */
+/** Estado do monitoramento DataJud. Espelha o enum do backend. */
+export type DatajudSyncStatus =
+  | 'NEVER_SYNCED'
+  | 'SYNCED'
+  | 'NOT_FOUND'
+  | 'ERROR'
+
+/** Andamento processual importado do DataJud. */
+export interface ProcessMovement {
+  id: number
+  code: number
+  name: string
+  occurredAt: string
+  complements: unknown
+}
+
+/** Detalhe = item + linha do tempo de status + monitoramento DataJud. */
 export interface ProcessDetail extends ProcessListItem {
   statusHistory: ProcessStatusHistoryItem[]
+  datajudSyncStatus: DatajudSyncStatus
+  datajudSyncedAt: string | null
+  datajudNextSyncAt: string | null
+  movements: ProcessMovement[]
 }
 
 export interface ListProcessesParams {
@@ -551,6 +571,10 @@ export const processesApi = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+  // Dispara a sincronização com o DataJud (responde 202; o resultado chega
+  // depois — a tela faz polling do processo).
+  sync: (id: number): Promise<{ status: string }> =>
+    request(`/processes/${id}/sync`, { method: 'POST' }),
 }
 
 export const expensesApi = {
