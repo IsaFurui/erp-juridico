@@ -100,7 +100,16 @@ describe('Processos (e2e)', () => {
         })
             // Sem rede real no teste: o provider devolve "não encontrado".
             .overrideProvider(TRIBUNAL_PROVIDER)
-            .useValue({ fetchMovements: () => Promise.resolve(null) })
+            .useValue({
+                fetchMovements: () =>
+                    Promise.resolve({
+                        movements: null,
+                        method: 'NONE',
+                        httpStatus: 0,
+                        rawResponse: null,
+                        durationMs: 0,
+                    }),
+            })
             .compile();
 
         app = moduleFixture.createNestApplication();
@@ -150,6 +159,9 @@ describe('Processos (e2e)', () => {
     afterAll(async () => {
         // Espera o sync disparado em segundo plano terminar antes de apagar.
         await datajudSync.drain();
+        await prisma.datajudSyncLog.deleteMany({
+            where: { processId: { in: createdProcesses } },
+        });
         await prisma.processMovement.deleteMany({
             where: { processId: { in: createdProcesses } },
         });

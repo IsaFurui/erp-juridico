@@ -2,14 +2,20 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DatajudSyncService, type SyncCandidate } from './datajud-sync.service';
-import type { TribunalMovement, TribunalProvider } from './tribunal-provider';
+import type {
+    TribunalLookup,
+    TribunalMovement,
+    TribunalProvider,
+} from './tribunal-provider';
 
 function setup() {
     const processUpdate = jest.fn().mockResolvedValue({});
     const createMany = jest.fn().mockResolvedValue({ count: 0 });
+    const logCreate = jest.fn().mockResolvedValue({});
     const prisma = {
         process: { update: processUpdate, findMany: jest.fn() },
         processMovement: { createMany },
+        datajudSyncLog: { create: logCreate },
     } as unknown as PrismaService;
 
     const notifyCompany = jest.fn().mockResolvedValue(undefined);
@@ -32,10 +38,30 @@ function setup() {
         service,
         processUpdate,
         createMany,
+        logCreate,
         notifyCompany,
         fetchMovements,
     };
 }
+
+/** Lookup "encontrado" para o mock do provider. */
+function found(movements: TribunalMovement[]): TribunalLookup {
+    return {
+        movements,
+        method: 'POST',
+        httpStatus: 200,
+        rawResponse: { hits: { hits: [] } },
+        durationMs: 10,
+    };
+}
+
+const NOT_FOUND: TribunalLookup = {
+    movements: null,
+    method: 'POST',
+    httpStatus: 200,
+    rawResponse: { hits: { hits: [] } },
+    durationMs: 10,
+};
 
 function candidate(over: Partial<SyncCandidate> = {}): SyncCandidate {
     return {
@@ -62,10 +88,11 @@ describe('DatajudSyncService', () => {
             service,
             processUpdate,
             createMany,
+            logCreate,
             notifyCompany,
             fetchMovements,
         } = setup();
-        fetchMovements.mockResolvedValue([MOV]);
+        fetchMovements.mockResolvedValue(found([MOV]));
         createMany.mockResolvedValue({ count: 1 });
 
         await service.syncProcess(candidate({ datajudSyncStatus: 'SYNCED' }));
@@ -82,11 +109,18 @@ describe('DatajudSyncService', () => {
                 processId: 1,
             }),
         );
+        // Gravou o log de auditoria da consulta.
+        expect(logCreate.mock.calls[0][0].data).toMatchObject({
+            processId: 1,
+            outcome: 'SYNCED',
+            movementCount: 1,
+            httpStatus: 200,
+        });
     });
 
     it('na primeira sincronização importa sem notificar', async () => {
         const { service, notifyCompany, createMany, fetchMovements } = setup();
-        fetchMovements.mockResolvedValue([MOV]);
+        fetchMovements.mockResolvedValue(found([MOV]));
         createMany.mockResolvedValue({ count: 5 });
 
         await service.syncProcess(
@@ -99,7 +133,7 @@ describe('DatajudSyncService', () => {
 
     it('sem movimento novo (tudo duplicado) não notifica', async () => {
         const { service, notifyCompany, createMany, fetchMovements } = setup();
-        fetchMovements.mockResolvedValue([MOV]);
+        fetchMovements.mockResolvedValue(found([MOV]));
         createMany.mockResolvedValue({ count: 0 });
 
         await service.syncProcess(candidate({ datajudSyncStatus: 'SYNCED' }));
@@ -109,7 +143,7 @@ describe('DatajudSyncService', () => {
 
     it('não encontrado marca NOT_FOUND e incrementa o backoff', async () => {
         const { service, processUpdate, fetchMovements } = setup();
-        fetchMovements.mockResolvedValue(null);
+        fetchMovements.mockResolvedValue(NOT_FOUND);
 
         await service.syncProcess(candidate({ datajudNotFoundStreak: 0 }));
 
@@ -121,7 +155,7 @@ describe('DatajudSyncService', () => {
 
     it('o backoff tem teto (não passa do tamanho da tabela de intervalos)', async () => {
         const { service, processUpdate, fetchMovements } = setup();
-        fetchMovements.mockResolvedValue(null);
+        fetchMovements.mockResolvedValue(NOT_FOUND);
 
         // 5 intervalos (1h,6h,24h,72h,168h): streak 5 permanece 5.
         await service.syncProcess(candidate({ datajudNotFoundStreak: 5 }));
@@ -131,8 +165,8 @@ describe('DatajudSyncService', () => {
         );
     });
 
-    it('erro de rede/HTTP marca ERROR', async () => {
-        const { service, processUpdate, fetchMovements } = setup();
+    it('erro de rede/HTTP marca ERROR e loga o desfecho', async () => {
+        const { service, processUpdate, logCreate, fetchMovements } = setup();
         fetchMovements.mockRejectedValue(new Error('boom'));
 
         await service.syncProcess(candidate());
@@ -140,11 +174,15 @@ describe('DatajudSyncService', () => {
         expect(processUpdate.mock.calls[0][0].data.datajudSyncStatus).toBe(
             'ERROR',
         );
+        expect(logCreate.mock.calls[0][0].data).toMatchObject({
+            outcome: 'ERROR',
+            error: 'boom',
+        });
     });
 
     it('não consulta o mesmo processo duas vezes ao mesmo tempo', async () => {
         const { service, fetchMovements } = setup();
-        let resolve: (v: TribunalMovement[] | null) => void = () => {};
+        let resolve: (v: TribunalLookup) => void = () => {};
         fetchMovements.mockReturnValue(
             new Promise((r) => {
                 resolve = r;
@@ -153,7 +191,7 @@ describe('DatajudSyncService', () => {
 
         const p1 = service.syncProcess(candidate());
         const p2 = service.syncProcess(candidate()); // mesmo id, em voo
-        resolve(null);
+        resolve(NOT_FOUND);
         await Promise.all([p1, p2]);
 
         expect(fetchMovements).toHaveBeenCalledTimes(1);

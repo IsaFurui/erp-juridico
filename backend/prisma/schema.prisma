@@ -189,6 +189,7 @@ model Process {
 
   statusHistory ProcessStatusHistory[]
   movements     ProcessMovement[]
+  datajudLogs   DatajudSyncLog[]
 }
 
 /// Notificação de um usuário (destinatário). Uma linha por pessoa, com estado
@@ -241,4 +242,25 @@ model ProcessMovement {
   process Process @relation(fields: [processId], references: [id], onDelete: Restrict)
 
   @@unique([processId, code, occurredAt])
+}
+
+/// Log de auditoria de cada consulta ao DataJud: o que foi perguntado, o que
+/// voltou (cru) e o desfecho. Serve de rastro ("o que o tribunal retornou e
+/// quando") e de apoio a debug/reprocesso sem bater de novo na API (lenta).
+model DatajudSyncLog {
+  id            Int               @id @default(autoincrement())
+  processId     Int
+  createdAt     DateTime          @default(now())
+  outcome       DatajudSyncStatus // SYNCED | NOT_FOUND | ERROR
+  httpStatus    Int?
+  method        String?
+  durationMs    Int?
+  movementCount Int? // novos movimentos inseridos (quando SYNCED)
+  request       Json?
+  response      Json?
+  error         String?
+
+  process Process @relation(fields: [processId], references: [id], onDelete: Restrict)
+
+  @@index([processId, createdAt])
 }

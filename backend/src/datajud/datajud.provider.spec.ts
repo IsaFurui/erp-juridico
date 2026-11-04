@@ -31,7 +31,9 @@ describe('DatajudProvider', () => {
 
     it('número sem alias (inválido) nem toca na rede', async () => {
         const provider = new DatajudProvider(config('k'));
-        expect(await provider.fetchMovements('123')).toBeNull();
+        const result = await provider.fetchMovements('123');
+        expect(result.movements).toBeNull();
+        expect(result.method).toBe('NONE');
         expect(mockedRequest).not.toHaveBeenCalled();
     });
 
@@ -67,7 +69,9 @@ describe('DatajudProvider', () => {
         );
         expect(optionsOf(0).method).toBe('POST');
         expect(optionsOf(0).headers.authorization).toBe('APIKey minha-chave');
-        expect(result?.map((m) => m.code)).toEqual([9]);
+        expect(result.movements?.map((m) => m.code)).toEqual([9]);
+        expect(result.method).toBe('POST');
+        expect(result.httpStatus).toBe(200);
     });
 
     it('405 no POST cai para GET com corpo', async () => {
@@ -81,7 +85,8 @@ describe('DatajudProvider', () => {
         expect(mockedRequest).toHaveBeenCalledTimes(2);
         expect(optionsOf(0).method).toBe('POST');
         expect(optionsOf(1).method).toBe('GET');
-        expect(result).toBeNull(); // consulta vazia = não encontrado
+        expect(result.movements).toBeNull(); // consulta vazia = não encontrado
+        expect(result.method).toBe('GET'); // registrou que o fallback venceu
     });
 
     it('401 estoura com mensagem de chave inválida', async () => {

@@ -9,12 +9,16 @@ import { ConfigService } from '@nestjs/config';
 import { CronJob } from 'cron';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { onlyDigits } from './datajud-alias';
 import {
     TRIBUNAL_PROVIDER,
+    type TribunalLookup,
     type TribunalMovement,
     type TribunalProvider,
 } from './tribunal-provider';
 import type { Prisma } from '../../generated/prisma/client';
+
+type SyncOutcome = 'SYNCED' | 'NOT_FOUND' | 'ERROR';
 
 // Backoff crescente para processos não encontrados na base pública (recentes,
 // ou em sigilo não marcado). Em horas, com teto de 7 dias.
@@ -160,10 +164,11 @@ export class DatajudSyncService implements OnModuleInit, OnModuleDestroy {
 
     private async doSync(process: SyncCandidate): Promise<void> {
         const firstSync = process.datajudSyncStatus === 'NEVER_SYNCED';
+        const started = Date.now();
 
-        let movements: TribunalMovement[] | null;
+        let lookup: TribunalLookup;
         try {
-            movements = await this.provider.fetchMovements(process.code);
+            lookup = await this.provider.fetchMovements(process.code);
         } catch (err) {
             // Rede/HTTP (incl. 401/403 já logado no provider): refaz no próximo
             // ciclo, sem backoff agressivo.
@@ -177,16 +182,36 @@ export class DatajudSyncService implements OnModuleInit, OnModuleDestroy {
                     datajudNextSyncAt: new Date(),
                 },
             });
+            await this.writeLog(process, {
+                outcome: 'ERROR',
+                error: msg(err),
+                durationMs: Date.now() - started,
+            });
             return;
         }
 
-        if (movements === null) {
+        if (lookup.movements === null) {
             await this.markNotFound(process);
+            await this.writeLog(process, {
+                outcome: 'NOT_FOUND',
+                httpStatus: lookup.httpStatus,
+                method: lookup.method,
+                durationMs: lookup.durationMs,
+                response: lookup.rawResponse,
+            });
             return;
         }
 
-        const newCount = await this.saveMovements(process.id, movements);
+        const newCount = await this.saveMovements(process.id, lookup.movements);
         await this.markSynced(process.id);
+        await this.writeLog(process, {
+            outcome: 'SYNCED',
+            httpStatus: lookup.httpStatus,
+            method: lookup.method,
+            durationMs: lookup.durationMs,
+            movementCount: newCount,
+            response: lookup.rawResponse,
+        });
 
         // A primeira sincronização importa o histórico sem avisar; depois, só
         // movimento novo gera notificação para o escritório.
@@ -198,6 +223,43 @@ export class DatajudSyncService implements OnModuleInit, OnModuleDestroy {
                 message: `${process.name}: ${newCount} novo(s) andamento(s)`,
                 processId: process.id,
             });
+        }
+    }
+
+    /** Grava o log de auditoria da consulta. Nunca derruba o sync. */
+    private async writeLog(
+        process: SyncCandidate,
+        fields: {
+            outcome: SyncOutcome;
+            httpStatus?: number;
+            method?: string;
+            durationMs?: number;
+            movementCount?: number;
+            response?: unknown;
+            error?: string;
+        },
+    ): Promise<void> {
+        try {
+            await this.prisma.datajudSyncLog.create({
+                data: {
+                    processId: process.id,
+                    outcome: fields.outcome,
+                    httpStatus: fields.httpStatus ?? null,
+                    method: fields.method ?? null,
+                    durationMs: fields.durationMs ?? null,
+                    movementCount: fields.movementCount ?? null,
+                    request: { numeroProcesso: onlyDigits(process.code) },
+                    response:
+                        fields.response == null
+                            ? undefined
+                            : (fields.response as Prisma.InputJsonValue),
+                    error: fields.error ?? null,
+                },
+            });
+        } catch (err) {
+            this.logger.warn(
+                `Falha ao gravar log de sync do processo ${process.id}: ${msg(err)}`,
+            );
         }
     }
 

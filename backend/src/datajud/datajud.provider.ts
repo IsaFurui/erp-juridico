@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { request } from 'undici';
 import { datajudAlias, datajudSearchUrl, onlyDigits } from './datajud-alias';
 import { movementsFromResponse } from './datajud-response';
-import type { TribunalMovement, TribunalProvider } from './tribunal-provider';
+import type { TribunalLookup, TribunalProvider } from './tribunal-provider';
 
 // A sonda real contra o CNJ mediu 37-45s por consulta (bem acima dos ~17s
 // estimados); 30s estouravam quase sempre. 60s dá folga sem travar o job.
@@ -15,17 +15,33 @@ export class DatajudProvider implements TribunalProvider {
 
     constructor(private readonly config: ConfigService) {}
 
-    async fetchMovements(code: string): Promise<TribunalMovement[] | null> {
+    async fetchMovements(code: string): Promise<TribunalLookup> {
         const alias = datajudAlias(code);
-        if (!alias) return null; // defensivo: o job já filtra alias nulo
+        if (!alias) {
+            // Defensivo: o job já filtra alias nulo. Sem consulta à rede.
+            return {
+                movements: null,
+                method: 'NONE',
+                httpStatus: 0,
+                rawResponse: null,
+                durationMs: 0,
+            };
+        }
 
         const url = datajudSearchUrl(alias);
         const body = JSON.stringify({
             query: { match: { numeroProcesso: onlyDigits(code) } },
         });
 
-        const json = await this.search(url, body);
-        return movementsFromResponse(json);
+        const started = Date.now();
+        const res = await this.search(url, body);
+        return {
+            movements: movementsFromResponse(res.json),
+            method: res.method,
+            httpStatus: res.statusCode,
+            rawResponse: res.json,
+            durationMs: Date.now() - started,
+        };
     }
 
     /**
@@ -35,7 +51,10 @@ export class DatajudProvider implements TribunalProvider {
      * corpo (que o `fetch` do Node não envia, por isso undici) fica só como
      * defesa, para o caso de o endpoint recusar o método (405).
      */
-    private async search(url: string, body: string): Promise<unknown> {
+    private async search(
+        url: string,
+        body: string,
+    ): Promise<{ statusCode: number; json: unknown; method: string }> {
         const apiKey = this.config.get<string>('DATAJUD_API_KEY');
         if (!apiKey) {
             // Só estoura quando há de fato uma consulta — nunca no bootstrap.
@@ -47,11 +66,13 @@ export class DatajudProvider implements TribunalProvider {
             authorization: `APIKey ${apiKey}`,
         };
 
+        let method = 'POST';
         let res = await this.send('POST', url, headers, body);
         if (res.statusCode === 405) {
             this.logger.debug(
                 'DataJud recusou POST (405); tentando GET com corpo',
             );
+            method = 'GET';
             res = await this.send('GET', url, headers, body);
         }
 
@@ -66,7 +87,7 @@ export class DatajudProvider implements TribunalProvider {
             throw new Error(`DataJud respondeu HTTP ${res.statusCode}`);
         }
 
-        return res.json;
+        return { ...res, method };
     }
 
     private async send(

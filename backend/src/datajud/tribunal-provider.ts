@@ -14,15 +14,31 @@ export interface TribunalMovement {
     complements: unknown;
 }
 
+/**
+ * Resultado de uma consulta, já com os dados crus para auditoria (log).
+ * `movements` é `null` quando a base não tem o processo.
+ */
+export interface TribunalLookup {
+    movements: TribunalMovement[] | null;
+    /** Método HTTP que funcionou (POST/GET), ou NONE se nem consultou. */
+    method: string;
+    /** Status HTTP da resposta (0 quando não houve consulta). */
+    httpStatus: number;
+    /** Resposta crua do tribunal, para auditoria. */
+    rawResponse: unknown;
+    /** Duração da consulta em ms. */
+    durationMs: number;
+}
+
 export interface TribunalProvider {
     /**
      * Consulta os movimentos de um processo pelo número CNJ.
-     * - lista de movimentos (do documento de maior grau) quando encontra;
-     * - `null` quando a consulta volta vazia (não encontrado na base pública)
-     *   ou o número não tem alias de tribunal — **não é erro**;
+     * - `movements`: lista (do documento de maior grau) ou `null` quando a
+     *   consulta volta vazia (não encontrado) ou o número não tem alias de
+     *   tribunal — **não é erro**;
      * - **lança** em falha de rede/HTTP (incl. 401/403 de chave inválida).
      */
-    fetchMovements(code: string): Promise<TribunalMovement[] | null>;
+    fetchMovements(code: string): Promise<TribunalLookup>;
 }
 
 /** Token de DI — o provider concreto é religado no módulo. */
