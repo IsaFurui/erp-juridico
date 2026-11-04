@@ -189,9 +189,9 @@ describe('Processos (e2e)', () => {
         };
         expect(Number(body.totalAmount)).toBe(28000);
         expect(body.statusHistory.length).toBeGreaterThanOrEqual(1);
-        expect(body.statusHistory.some((h) => h.note === 'Processo criado')).toBe(
-            true,
-        );
+        expect(
+            body.statusHistory.some((h) => h.note === 'Processo criado'),
+        ).toBe(true);
     });
 
     it('ao encerrar, aceita o Total final e registra o histórico', async () => {
@@ -230,5 +230,58 @@ describe('Processos (e2e)', () => {
 
         const body = res.body as { totalAmount: string };
         expect(Number(body.totalAmount)).toBe(28000);
+    });
+
+    it('nasce PUBLIC quando o tipo do seed não é sigiloso e a API não envia', async () => {
+        const res = await request(server)
+            .post('/processes')
+            .set('Authorization', `Bearer ${tokenA}`)
+            .send({
+                name: 'Processo público',
+                code: `CNJ-PUB-${suffix}`,
+                clientId: clientA,
+                typeId,
+                statusId: statusNonFinal,
+            })
+            .expect(201);
+        createdProcesses.push((res.body as { id: number }).id);
+        expect((res.body as { confidentiality: string }).confidentiality).toBe(
+            'PUBLIC',
+        );
+    });
+
+    it('aceita confidentiality explícito na criação', async () => {
+        const res = await request(server)
+            .post('/processes')
+            .set('Authorization', `Bearer ${tokenA}`)
+            .send({
+                name: 'Processo sigiloso',
+                code: `CNJ-SIG-${suffix}`,
+                clientId: clientA,
+                typeId,
+                statusId: statusNonFinal,
+                confidentiality: 'CONFIDENTIAL',
+            })
+            .expect(201);
+        createdProcesses.push((res.body as { id: number }).id);
+        expect((res.body as { confidentiality: string }).confidentiality).toBe(
+            'CONFIDENTIAL',
+        );
+    });
+
+    it('o advogado marca/desmarca o sigilo pela edição', async () => {
+        await request(server)
+            .patch(`/processes/${processA}`)
+            .set('Authorization', `Bearer ${tokenA}`)
+            .send({ confidentiality: 'CONFIDENTIAL' })
+            .expect(200);
+
+        const res = await request(server)
+            .get(`/processes/${processA}`)
+            .set('Authorization', `Bearer ${tokenA}`)
+            .expect(200);
+        expect((res.body as { confidentiality: string }).confidentiality).toBe(
+            'CONFIDENTIAL',
+        );
     });
 });

@@ -122,17 +122,21 @@ describe('ProcessService — criação grava histórico e aplica a regra do Tota
     beforeEach(() => {
         clientFindFirst.mockReset().mockResolvedValue({ id: 1 });
         typeFindUnique.mockReset().mockResolvedValue({ id: 1 });
-        statusFindUnique.mockReset().mockResolvedValue({ id: 1, isFinal: false });
+        statusFindUnique
+            .mockReset()
+            .mockResolvedValue({ id: 1, isFinal: false });
         subtypeFindUnique.mockReset();
         processFindUnique.mockReset().mockResolvedValue(null); // código livre
         txProcessCreate.mockReset().mockResolvedValue({ id: 99 });
         txHistoryCreate.mockReset().mockResolvedValue({});
-        $transaction.mockReset().mockImplementation((cb: (tx: unknown) => unknown) =>
-            cb({
-                process: { create: txProcessCreate },
-                processStatusHistory: { create: txHistoryCreate },
-            }),
-        );
+        $transaction
+            .mockReset()
+            .mockImplementation((cb: (tx: unknown) => unknown) =>
+                cb({
+                    process: { create: txProcessCreate },
+                    processStatusHistory: { create: txHistoryCreate },
+                }),
+            );
     });
 
     it('deriva o Total quando o status não é de encerramento', async () => {
@@ -154,6 +158,33 @@ describe('ProcessService — criação grava histórico e aplica a regra do Tota
             userId: 1,
             note: 'Processo criado',
         });
+    });
+
+    it('nasce PUBLIC quando o tipo não é sigiloso por padrão e a API não envia', async () => {
+        await service.create(baseDto, 7, 1);
+        expect(txProcessCreate.mock.calls[0][0].data.confidentiality).toBe(
+            'PUBLIC',
+        );
+    });
+
+    it('herda CONFIDENTIAL do defaultConfidential do tipo quando a API não envia', async () => {
+        typeFindUnique.mockResolvedValue({ id: 1, defaultConfidential: true });
+        await service.create(baseDto, 7, 1);
+        expect(txProcessCreate.mock.calls[0][0].data.confidentiality).toBe(
+            'CONFIDENTIAL',
+        );
+    });
+
+    it('o valor explícito da API vence o padrão do tipo', async () => {
+        typeFindUnique.mockResolvedValue({ id: 1, defaultConfidential: true });
+        await service.create(
+            { ...baseDto, confidentiality: 'PUBLIC' } as typeof baseDto,
+            7,
+            1,
+        );
+        expect(txProcessCreate.mock.calls[0][0].data.confidentiality).toBe(
+            'PUBLIC',
+        );
     });
 });
 
@@ -207,6 +238,27 @@ describe('ProcessService — edição recalcula o Total conforme o status', () =
         await service.update(1, { fixedAmount: 1 }, 7);
         expect(update.mock.calls[0][0].data.totalAmount).toBeUndefined();
     });
+
+    it('grava o sigilo informado na edição (controle manual do advogado)', async () => {
+        findFirst.mockResolvedValue({
+            id: 1,
+            code: 'C-1',
+            type: { id: 1 },
+            fixedAmount: 3000,
+            expectedAmount: 25000,
+            status: { id: 1, isFinal: false },
+        });
+        await service.update(
+            1,
+            { confidentiality: 'CONFIDENTIAL' } as Parameters<
+                typeof service.update
+            >[1],
+            7,
+        );
+        expect(update.mock.calls[0][0].data.confidentiality).toBe(
+            'CONFIDENTIAL',
+        );
+    });
 });
 
 describe('ProcessService — mudança de status grava histórico e Total de encerramento', () => {
@@ -225,22 +277,33 @@ describe('ProcessService — mudança de status grava histórico e Total de ence
     const service = new ProcessService(prisma, notifications);
 
     beforeEach(() => {
-        findFirst
+        findFirst.mockReset().mockResolvedValue({
+            id: 1,
+            fixedAmount: 4000,
+            expectedAmount: 18000,
+        });
+        statusFindUnique
             .mockReset()
-            .mockResolvedValue({ id: 1, fixedAmount: 4000, expectedAmount: 18000 });
-        statusFindUnique.mockReset().mockResolvedValue({ id: 9, isFinal: true });
+            .mockResolvedValue({ id: 9, isFinal: true });
         txProcessUpdate.mockReset().mockResolvedValue({});
         txHistoryCreate.mockReset().mockResolvedValue({});
-        $transaction.mockReset().mockImplementation((cb: (tx: unknown) => unknown) =>
-            cb({
-                process: { update: txProcessUpdate },
-                processStatusHistory: { create: txHistoryCreate },
-            }),
-        );
+        $transaction
+            .mockReset()
+            .mockImplementation((cb: (tx: unknown) => unknown) =>
+                cb({
+                    process: { update: txProcessUpdate },
+                    processStatusHistory: { create: txHistoryCreate },
+                }),
+            );
     });
 
     it('ao encerrar, aceita o Total final e registra o histórico', async () => {
-        await service.changeStatus(1, { statusId: 9, totalAmount: 22500 }, 7, 1);
+        await service.changeStatus(
+            1,
+            { statusId: 9, totalAmount: 22500 },
+            7,
+            1,
+        );
         expect(txProcessUpdate.mock.calls[0][0].data).toMatchObject({
             statusId: 9,
             totalAmount: 22500,
@@ -270,12 +333,22 @@ describe('ProcessService — mudança de status grava histórico e Total de ence
 
     it('não marca "ajustado" no histórico quando o Total final é igual ao derivado', async () => {
         // derivado = 4000 + 18000 = 22000; encerra informando o mesmo valor.
-        await service.changeStatus(1, { statusId: 9, totalAmount: 22000 }, 7, 1);
+        await service.changeStatus(
+            1,
+            { statusId: 9, totalAmount: 22000 },
+            7,
+            1,
+        );
         expect(txHistoryCreate.mock.calls[0][0].data.note).toBeNull();
     });
 
     it('marca "ajustado" no histórico quando o Total final difere do derivado', async () => {
-        await service.changeStatus(1, { statusId: 9, totalAmount: 22500 }, 7, 1);
+        await service.changeStatus(
+            1,
+            { statusId: 9, totalAmount: 22500 },
+            7,
+            1,
+        );
         expect(txHistoryCreate.mock.calls[0][0].data.note).toMatch(/ajustado/i);
     });
 });

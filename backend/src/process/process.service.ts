@@ -11,6 +11,7 @@ import { UpdateProcessDto } from './dto/update-process.dto';
 import { ChangeProcessStatusDto } from './dto/change-process-status.dto';
 import { ListProcessesQueryDto } from './dto/list-processes-query.dto';
 import type { Prisma } from '../../generated/prisma/client';
+import { Confidentiality } from './enums/confidentiality.enum';
 import {
     buildPaginated,
     resolvePagination,
@@ -24,6 +25,7 @@ const PUBLIC_SELECT = {
     fixedAmount: true,
     expectedAmount: true,
     totalAmount: true,
+    confidentiality: true,
     createdAt: true,
     updatedAt: true,
     client: { select: { id: true, name: true } },
@@ -58,7 +60,7 @@ export class ProcessService {
 
     async create(dto: CreateProcessDto, companyId: number, userId: number) {
         await this.ensureClient(dto.clientId, companyId);
-        await this.ensureType(dto.typeId);
+        const type = await this.ensureType(dto.typeId);
         const status = await this.ensureStatus(dto.statusId);
         if (dto.subtypeId != null) {
             await this.ensureSubtype(dto.subtypeId, dto.typeId);
@@ -75,6 +77,14 @@ export class ProcessService {
                 ? dto.totalAmount
                 : this.computeTotal(dto.fixedAmount, dto.expectedAmount);
 
+        // Sigilo é estado do processo: o tipo só dá o valor inicial. Quando a
+        // API não envia confidentiality, herda o defaultConfidential do tipo.
+        const confidentiality =
+            dto.confidentiality ??
+            (type.defaultConfidential
+                ? Confidentiality.CONFIDENTIAL
+                : Confidentiality.PUBLIC);
+
         // Transação: o processo e a primeira linha do histórico nascem juntos.
         const process = await this.prisma.$transaction(async (tx) => {
             const process = await tx.process.create({
@@ -90,6 +100,7 @@ export class ProcessService {
                     fixedAmount: dto.fixedAmount ?? null,
                     expectedAmount: dto.expectedAmount ?? null,
                     totalAmount,
+                    confidentiality,
                 },
                 select: PUBLIC_SELECT,
             });
@@ -216,13 +227,17 @@ export class ProcessService {
             ...(dto.expectedAmount !== undefined && {
                 expectedAmount: dto.expectedAmount,
             }),
+            ...(dto.confidentiality !== undefined && {
+                confidentiality: dto.confidentiality,
+            }),
         };
 
         // O status só muda pela rota dedicada. Aqui, enquanto o processo não
         // estiver encerrado, o Total acompanha Entrada + Esperado; num processo
         // já encerrado o Total ajustado é preservado.
         if (!current.status.isFinal) {
-            const newFixed = dto.fixedAmount ?? Number(current.fixedAmount ?? 0);
+            const newFixed =
+                dto.fixedAmount ?? Number(current.fixedAmount ?? 0);
             const newExpected =
                 dto.expectedAmount ?? Number(current.expectedAmount ?? 0);
             data.totalAmount = this.computeTotal(newFixed, newExpected);
@@ -330,6 +345,7 @@ export class ProcessService {
             where: { id: typeId },
         });
         if (!type) throw new BadRequestException('Tipo de processo inválido');
+        return type;
     }
 
     private async ensureStatus(statusId: number) {

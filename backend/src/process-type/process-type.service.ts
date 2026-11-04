@@ -20,7 +20,12 @@ export class ProcessTypeService {
         if (existing) throw new ConflictException('Tipo já cadastrado');
 
         return this.prisma.processType.create({
-            data: { name: dto.name },
+            data: {
+                name: dto.name,
+                ...(dto.defaultConfidential !== undefined && {
+                    defaultConfidential: dto.defaultConfidential,
+                }),
+            },
         });
     }
 
@@ -51,6 +56,9 @@ export class ProcessTypeService {
             where: { id },
             data: {
                 ...(dto.name !== undefined && { name: dto.name }),
+                ...(dto.defaultConfidential !== undefined && {
+                    defaultConfidential: dto.defaultConfidential,
+                }),
             },
         });
     }
