@@ -141,9 +141,14 @@ function ProcessDetailPage() {
         <div className="detail-head-info">
           <div className="detail-code">{process.code}</div>
           <h1 className="detail-name">{process.name}</h1>
-          <Badge variant={statusVariant(process.status.description)}>
-            {process.status.description}
-          </Badge>
+          <div className="detail-badges">
+            <Badge variant={statusVariant(process.status.description)}>
+              {process.status.description}
+            </Badge>
+            {process.confidentiality === 'CONFIDENTIAL' && (
+              <Badge variant="warning">🔒 Sigiloso</Badge>
+            )}
+          </div>
         </div>
         <div className="detail-actions">
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
@@ -168,6 +173,12 @@ function ProcessDetailPage() {
               <dd>{process.subtype?.name ?? '—'}</dd>
               <dt>Responsável</dt>
               <dd>{process.responsible?.name ?? '—'}</dd>
+              <dt>Sigilo</dt>
+              <dd>
+                {process.confidentiality === 'CONFIDENTIAL'
+                  ? 'Sigiloso (segredo de justiça)'
+                  : 'Público'}
+              </dd>
               <dt>Aberto em</dt>
               <dd>{formatDate(process.createdAt)}</dd>
             </dl>

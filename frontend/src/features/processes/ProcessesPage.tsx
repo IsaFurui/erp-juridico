@@ -232,9 +232,14 @@ function ProcessesPage() {
               >
                 <div className="process-card-top">
                   <span className="process-card-code">{p.code}</span>
-                  <Badge variant={statusVariant(p.status.description)}>
-                    {p.status.description}
-                  </Badge>
+                  <span className="process-card-badges">
+                    {p.confidentiality === 'CONFIDENTIAL' && (
+                      <Badge variant="warning">🔒 Sigiloso</Badge>
+                    )}
+                    <Badge variant={statusVariant(p.status.description)}>
+                      {p.status.description}
+                    </Badge>
+                  </span>
                 </div>
                 <div className="process-card-name">{p.name}</div>
                 <div className="process-card-sub">

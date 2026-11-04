@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { isTenant } from '../../lib/jwt'
 import type {
   Colleague,
+  Confidentiality,
   ProcessDetail,
   ProcessStatus,
   ProcessSubtype,
@@ -77,6 +78,12 @@ function ProcessFormModal({
     () => initial?.responsible?.id ?? currentUserId ?? '',
   )
 
+  const [confidentiality, setConfidentiality] = useState<Confidentiality>(
+    () => initial?.confidentiality ?? 'PUBLIC',
+  )
+  // Quando o usuário mexe no sigilo na mão, paramos de seguir o padrão do tipo.
+  const [confidentialityTouched, setConfidentialityTouched] = useState(false)
+
   const [types, setTypes] = useState<ProcessType[]>([])
   const [subtypes, setSubtypes] = useState<ProcessSubtype[]>([])
   const [colleagues, setColleagues] = useState<Colleague[]>([])
@@ -129,6 +136,17 @@ function ProcessFormModal({
     }
   }, [typeId])
 
+  // No cadastro, ao escolher o tipo o sigilo acompanha o padrão dele — até o
+  // usuário mexer na mão. Na edição nunca muda sozinho (é estado do processo).
+  const handleTypeChange = (value: number | '') => {
+    setTypeId(value)
+    if (isEditing || confidentialityTouched || value === '') return
+    const type = types.find((t) => t.id === value)
+    if (type) {
+      setConfidentiality(type.defaultConfidential ? 'CONFIDENTIAL' : 'PUBLIC')
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -153,6 +171,7 @@ function ProcessFormModal({
           responsibleId: responsibleId === '' ? null : responsibleId,
           fixedAmount,
           expectedAmount,
+          confidentiality,
         })
       } else {
         const statusId = defaultStatusId(statuses)
@@ -170,6 +189,7 @@ function ProcessFormModal({
           responsibleId: responsibleId === '' ? null : responsibleId,
           fixedAmount,
           expectedAmount,
+          confidentiality,
         })
       }
       onSaved()
@@ -226,7 +246,9 @@ function ProcessFormModal({
               className="ui-input"
               value={typeId}
               onChange={(e) =>
-                setTypeId(e.target.value === '' ? '' : Number(e.target.value))
+                handleTypeChange(
+                  e.target.value === '' ? '' : Number(e.target.value),
+                )
               }
             >
               <option value="">Selecione…</option>
@@ -286,6 +308,28 @@ function ProcessFormModal({
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="ui-field">
+          <label className="ui-field-label" htmlFor="process-confidentiality">
+            Sigilo
+          </label>
+          <select
+            id="process-confidentiality"
+            className="ui-input"
+            value={confidentiality}
+            onChange={(e) => {
+              setConfidentiality(e.target.value as Confidentiality)
+              setConfidentialityTouched(true)
+            }}
+          >
+            <option value="PUBLIC">Público</option>
+            <option value="CONFIDENTIAL">Sigiloso (segredo de justiça)</option>
+          </select>
+          <p className="process-form-hint">
+            Processos sigilosos ficam fora do monitoramento automático do
+            DataJud.
+          </p>
         </div>
 
         <div className="process-form-row">

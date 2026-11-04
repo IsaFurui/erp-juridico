@@ -22,10 +22,15 @@ export const removeStatus = (id: number): Promise<void> =>
 
 // Tipos
 export const listTypes = (): Promise<ProcessType[]> => processTypeApi.listAll()
-export const createType = (name: string): Promise<ProcessType> =>
-  processTypeApi.create({ name })
-export const updateType = (id: number, name: string): Promise<ProcessType> =>
-  processTypeApi.update(id, { name })
+export const createType = (
+  name: string,
+  defaultConfidential: boolean,
+): Promise<ProcessType> =>
+  processTypeApi.create({ name, defaultConfidential })
+export const updateType = (
+  id: number,
+  payload: { name?: string; defaultConfidential?: boolean },
+): Promise<ProcessType> => processTypeApi.update(id, payload)
 export const removeType = (id: number): Promise<void> =>
   processTypeApi.remove(id)
 

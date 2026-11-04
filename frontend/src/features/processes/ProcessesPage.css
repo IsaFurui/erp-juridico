@@ -80,8 +80,16 @@
   overflow-wrap: anywhere;
 }
 
-/* O badge de status fica fixo no canto, numa linha só — sem encolher nem
-   quebrar o texto para fora do cartão. */
+/* Os badges (sigilo + status) ficam fixos no canto, numa linha só — sem
+   encolher nem quebrar o texto para fora do cartão. */
+.process-card-badges {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .process-card-top .ui-badge {
   flex-shrink: 0;
   white-space: nowrap;

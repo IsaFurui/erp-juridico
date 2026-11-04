@@ -112,9 +112,14 @@ export interface ProcessStatus {
   isFinal: boolean
 }
 
+/** Sigilo do processo. Espelha o enum `Confidentiality` do backend. */
+export type Confidentiality = 'PUBLIC' | 'CONFIDENTIAL'
+
 export interface ProcessType {
   id: number
   name: string
+  /** Sigilo sugerido ao criar um processo deste tipo. */
+  defaultConfidential: boolean
 }
 
 export interface ProcessSubtype {
@@ -147,6 +152,7 @@ export interface ProcessListItem {
   fixedAmount: string | null
   expectedAmount: string | null
   totalAmount: string
+  confidentiality: Confidentiality
   client: ProcessRef
   type: ProcessRef
   subtype: ProcessRef | null
@@ -188,6 +194,7 @@ export interface CreateProcessPayload {
   responsibleId?: number | null
   fixedAmount?: number
   expectedAmount?: number
+  confidentiality?: Confidentiality
 }
 
 export interface UpdateProcessPayload {
@@ -199,6 +206,7 @@ export interface UpdateProcessPayload {
   responsibleId?: number | null
   fixedAmount?: number
   expectedAmount?: number
+  confidentiality?: Confidentiality
 }
 
 /** Lista enxuta de colegas do escritório (para o picker de responsável). */
@@ -610,12 +618,18 @@ export const processTypeApi = {
   listAll: (): Promise<ProcessType[]> => request('/process-type'),
   listSubtypes: (id: number): Promise<ProcessSubtype[]> =>
     request(`/process-type/${id}/subtypes`),
-  create: (payload: { name: string }): Promise<ProcessType> =>
+  create: (payload: {
+    name: string
+    defaultConfidential?: boolean
+  }): Promise<ProcessType> =>
     request('/process-type', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  update: (id: number, payload: { name: string }): Promise<ProcessType> =>
+  update: (
+    id: number,
+    payload: { name?: string; defaultConfidential?: boolean },
+  ): Promise<ProcessType> =>
     request(`/process-type/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),

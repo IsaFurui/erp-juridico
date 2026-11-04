@@ -42,6 +42,12 @@
   margin-bottom: 4px;
 }
 
+.detail-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .detail-name {
   margin: 0 0 8px;
   font-size: 22px;
