@@ -6,6 +6,8 @@ import * as bcrypt from 'bcrypt';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/prisma/prisma.service';
 import { UserRole } from './../generated/prisma/enums';
+import { TRIBUNAL_PROVIDER } from './../src/datajud/tribunal-provider';
+import { DatajudSyncService } from './../src/datajud/datajud-sync.service';
 
 /**
  * Processos ponta a ponta: isolamento por empresa, histórico de status e a
@@ -18,6 +20,7 @@ describe('Processos (e2e)', () => {
     let app: INestApplication<App>;
     let prisma: PrismaService;
     let server: App;
+    let datajudSync: DatajudSyncService;
 
     const suffix = Date.now().toString().slice(-9);
     const PASSWORD = 'senha123';
@@ -94,7 +97,11 @@ describe('Processos (e2e)', () => {
     beforeAll(async () => {
         const moduleFixture: TestingModule = await Test.createTestingModule({
             imports: [AppModule],
-        }).compile();
+        })
+            // Sem rede real no teste: o provider devolve "não encontrado".
+            .overrideProvider(TRIBUNAL_PROVIDER)
+            .useValue({ fetchMovements: () => Promise.resolve(null) })
+            .compile();
 
         app = moduleFixture.createNestApplication();
         app.useGlobalPipes(
@@ -108,6 +115,7 @@ describe('Processos (e2e)', () => {
 
         prisma = app.get(PrismaService);
         server = app.getHttpServer();
+        datajudSync = app.get(DatajudSyncService);
 
         const a = await createCompanyWithAdmin('PA', '44');
         const b = await createCompanyWithAdmin('PB', '55');
@@ -140,6 +148,11 @@ describe('Processos (e2e)', () => {
     });
 
     afterAll(async () => {
+        // Espera o sync disparado em segundo plano terminar antes de apagar.
+        await datajudSync.drain();
+        await prisma.processMovement.deleteMany({
+            where: { processId: { in: createdProcesses } },
+        });
         await prisma.processStatusHistory.deleteMany({
             where: { processId: { in: createdProcesses } },
         });
@@ -284,4 +297,40 @@ describe('Processos (e2e)', () => {
             'CONFIDENTIAL',
         );
     });
+
+    it('dispara a sincronização sob demanda (202) em processo público', async () => {
+        const id = await createProcess(tokenA, clientA, 'SYNC');
+        await request(server)
+            .post(`/processes/${id}/sync`)
+            .set('Authorization', `Bearer ${tokenA}`)
+            .expect(202);
+    });
+
+    it('recusa sincronizar processo sigiloso (409)', async () => {
+        const res = await request(server)
+            .post('/processes')
+            .set('Authorization', `Bearer ${tokenA}`)
+            .send({
+                name: 'Sigiloso p/ sync',
+                code: `CNJ-SIGSYNC-${suffix}`,
+                clientId: clientA,
+                typeId,
+                statusId: statusNonFinal,
+                confidentiality: 'CONFIDENTIAL',
+            })
+            .expect(201);
+        const id = (res.body as { id: number }).id;
+        createdProcesses.push(id);
+
+        await request(server)
+            .post(`/processes/${id}/sync`)
+            .set('Authorization', `Bearer ${tokenA}`)
+            .expect(409);
+    });
+
+    it('não sincroniza processo de outra empresa (404)', () =>
+        request(server)
+            .post(`/processes/${processB}/sync`)
+            .set('Authorization', `Bearer ${tokenA}`)
+            .expect(404));
 });

@@ -1,11 +1,17 @@
 import { ProcessService } from './process.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { DatajudSyncService } from '../datajud/datajud-sync.service';
 
 // As notificações são efeito colateral: aqui só não podem quebrar o fluxo.
 const notifications = {
     notifyCompany: jest.fn(),
 } as unknown as NotificationsService;
+
+// O sync do DataJud é disparado em segundo plano; nos testes é só um stub.
+const datajudSync = {
+    enqueue: jest.fn(),
+} as unknown as DatajudSyncService;
 
 describe('ProcessService — listagem paginada e escopo de tenant', () => {
     const findMany = jest.fn();
@@ -17,7 +23,7 @@ describe('ProcessService — listagem paginada e escopo de tenant', () => {
         $transaction,
     } as unknown as PrismaService;
 
-    const service = new ProcessService(prisma, notifications);
+    const service = new ProcessService(prisma, notifications, datajudSync);
 
     /** O que foi passado para o findMany dentro do $transaction. */
     function findManyArgs() {
@@ -107,7 +113,7 @@ describe('ProcessService — criação grava histórico e aplica a regra do Tota
         $transaction,
     } as unknown as PrismaService;
 
-    const service = new ProcessService(prisma, notifications);
+    const service = new ProcessService(prisma, notifications, datajudSync);
 
     const baseDto = {
         name: 'Processo X',
@@ -203,7 +209,7 @@ describe('ProcessService — edição recalcula o Total conforme o status', () =
         processSubtype: { findUnique: subtypeFindUnique },
     } as unknown as PrismaService;
 
-    const service = new ProcessService(prisma, notifications);
+    const service = new ProcessService(prisma, notifications, datajudSync);
 
     beforeEach(() => {
         update.mockReset().mockResolvedValue({});
@@ -274,7 +280,7 @@ describe('ProcessService — mudança de status grava histórico e Total de ence
         $transaction,
     } as unknown as PrismaService;
 
-    const service = new ProcessService(prisma, notifications);
+    const service = new ProcessService(prisma, notifications, datajudSync);
 
     beforeEach(() => {
         findFirst.mockReset().mockResolvedValue({

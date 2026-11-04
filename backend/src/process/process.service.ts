@@ -6,12 +6,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { DatajudSyncService } from '../datajud/datajud-sync.service';
 import { CreateProcessDto } from './dto/create-process.dto';
 import { UpdateProcessDto } from './dto/update-process.dto';
 import { ChangeProcessStatusDto } from './dto/change-process-status.dto';
 import { ListProcessesQueryDto } from './dto/list-processes-query.dto';
 import type { Prisma } from '../../generated/prisma/client';
 import { Confidentiality } from './enums/confidentiality.enum';
+import { datajudAlias } from '../datajud/datajud-alias';
 import {
     buildPaginated,
     resolvePagination,
@@ -36,9 +38,12 @@ const PUBLIC_SELECT = {
 };
 
 // Detalhe inclui o histórico de status (do mais recente para o mais antigo),
-// com quem mudou e a observação.
+// o estado do monitoramento DataJud e os movimentos importados.
 const DETAIL_SELECT = {
     ...PUBLIC_SELECT,
+    datajudSyncStatus: true,
+    datajudSyncedAt: true,
+    datajudNextSyncAt: true,
     statusHistory: {
         select: {
             id: true,
@@ -49,6 +54,16 @@ const DETAIL_SELECT = {
         },
         orderBy: { changedAt: 'desc' as const },
     },
+    movements: {
+        select: {
+            id: true,
+            code: true,
+            name: true,
+            occurredAt: true,
+            complements: true,
+        },
+        orderBy: { occurredAt: 'desc' as const },
+    },
 };
 
 @Injectable()
@@ -56,7 +71,45 @@ export class ProcessService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly notifications: NotificationsService,
+        private readonly datajudSync: DatajudSyncService,
     ) {}
+
+    /**
+     * Dispara a sincronização do processo com o DataJud sob demanda (botão
+     * "Atualizar agora"). Escopado pela empresa do token (404 para outra
+     * empresa) e recusa processo sigiloso. Responde já — a consulta (~40s)
+     * roda em segundo plano e a tela faz polling do processo.
+     */
+    async requestSync(id: number, companyId: number) {
+        const process = await this.prisma.process.findFirst({
+            where: { id, companyId },
+            select: {
+                id: true,
+                code: true,
+                companyId: true,
+                name: true,
+                confidentiality: true,
+                datajudSyncStatus: true,
+                datajudNotFoundStreak: true,
+            },
+        });
+        if (!process) throw new NotFoundException('Processo não encontrado');
+        if (process.confidentiality === 'CONFIDENTIAL') {
+            throw new ConflictException(
+                'Processo sigiloso não é monitorado pelo DataJud (segredo de justiça). O acompanhamento é manual.',
+            );
+        }
+
+        this.datajudSync.enqueue({
+            id: process.id,
+            code: process.code,
+            companyId: process.companyId,
+            name: process.name,
+            datajudSyncStatus: process.datajudSyncStatus,
+            datajudNotFoundStreak: process.datajudNotFoundStreak,
+        });
+        return { status: 'enqueued' as const };
+    }
 
     async create(dto: CreateProcessDto, companyId: number, userId: number) {
         await this.ensureClient(dto.clientId, companyId);
@@ -101,6 +154,8 @@ export class ProcessService {
                     expectedAmount: dto.expectedAmount ?? null,
                     totalAmount,
                     confidentiality,
+                    // Alias derivado do número; nulo = fora do monitoramento.
+                    datajudAlias: datajudAlias(dto.code),
                 },
                 select: PUBLIC_SELECT,
             });
@@ -241,6 +296,17 @@ export class ProcessService {
             const newExpected =
                 dto.expectedAmount ?? Number(current.expectedAmount ?? 0);
             data.totalAmount = this.computeTotal(newFixed, newExpected);
+        }
+
+        // Número mudou: recalcula o alias e zera o monitoramento (para o DataJud
+        // é outro processo). Um número antes sem alias pode passar a ter, e
+        // vice-versa.
+        if (dto.code !== undefined && dto.code !== current.code) {
+            data.datajudAlias = datajudAlias(dto.code);
+            data.datajudSyncStatus = 'NEVER_SYNCED';
+            data.datajudSyncedAt = null;
+            data.datajudNextSyncAt = null;
+            data.datajudNotFoundStreak = 0;
         }
 
         return this.prisma.process.update({

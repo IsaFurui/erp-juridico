@@ -16,6 +16,7 @@ import { ProcessModule } from './process/process.module';
 import { ExpenseModule } from './expense/expense.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { DatajudModule } from './datajud/datajud.module';
 
 @Module({
     imports: [
@@ -38,6 +39,7 @@ import { NotificationsModule } from './notifications/notifications.module';
         ExpenseModule,
         DashboardModule,
         NotificationsModule,
+        DatajudModule,
     ],
     controllers: [AppController],
     providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -169,11 +169,16 @@ model Process {
 
   confidentiality   Confidentiality   @default(PUBLIC)
   /// Monitoramento DataJud. O job só pega PUBLIC com datajudNextSyncAt vencido
-  /// ou nulo (e alias de tribunal não nulo). datajudNextSyncAt cresce no
-  /// backoff de NOT_FOUND; datajudSyncedAt marca a última consulta bem-sucedida.
-  datajudSyncStatus DatajudSyncStatus @default(NEVER_SYNCED)
-  datajudSyncedAt   DateTime?
-  datajudNextSyncAt DateTime?
+  /// ou nulo e datajudAlias não nulo. datajudAlias é derivado do code (número
+  /// CNJ) e gravado na criação/edição — número sem tribunal reconhecível fica
+  /// com alias nulo e, portanto, fora do job. datajudNextSyncAt cresce no
+  /// backoff de NOT_FOUND (datajudNotFoundStreak conta as tentativas vazias
+  /// seguidas); datajudSyncedAt marca a última consulta bem-sucedida.
+  datajudSyncStatus     DatajudSyncStatus @default(NEVER_SYNCED)
+  datajudAlias          String?
+  datajudSyncedAt       DateTime?
+  datajudNextSyncAt     DateTime?
+  datajudNotFoundStreak Int               @default(0)
 
   company     Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
   client      Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)

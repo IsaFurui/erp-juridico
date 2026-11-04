@@ -1,11 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
-export type NotificationType = 'PROCESS_CREATED' | 'STATUS_CHANGED';
+export type NotificationType =
+    | 'PROCESS_CREATED'
+    | 'STATUS_CHANGED'
+    | 'PROCESS_MOVEMENT';
 
 interface NotifyInput {
     companyId: number;
-    /** Quem fez a ação — não recebe a própria notificação. */
+    /**
+     * Quem fez a ação — não recebe a própria notificação. Para eventos do
+     * sistema (ex.: andamento do DataJud) use 0: nenhum usuário tem id 0, então
+     * o escritório inteiro é notificado.
+     */
     actorId: number;
     type: NotificationType;
     message: string;
