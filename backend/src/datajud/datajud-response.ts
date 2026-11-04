@@ -2,9 +2,10 @@ import type { TribunalMovement } from './tribunal-provider';
 
 /**
  * Parsing da resposta do DataJud. Fica isolado aqui, sem rede, para ser
- * testável com um JSON de exemplo. O shape assumido (hits.hits[]._source com
- * grau + movimentos) segue a documentação do CNJ; confirmar com a sonda real
- * antes de confiar cegamente.
+ * testável com um JSON de exemplo. Shape confirmado por sonda real (2026-11):
+ * topo `took/timed_out/_shards/hits`, com `hits.hits[]._source.{grau,
+ * movimentos}`. Atenção: `grau` traz valores como "JE" (juizado especial),
+ * não só "G1"/"G2".
  */
 
 interface DatajudMovimento {

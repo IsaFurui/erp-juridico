@@ -5,8 +5,9 @@ import { datajudAlias, datajudSearchUrl, onlyDigits } from './datajud-alias';
 import { movementsFromResponse } from './datajud-response';
 import type { TribunalMovement, TribunalProvider } from './tribunal-provider';
 
-// A consulta ao TJSP já levou ~17s; damos folga sem deixar o job travar.
-const REQUEST_TIMEOUT_MS = 30_000;
+// A sonda real contra o CNJ mediu 37-45s por consulta (bem acima dos ~17s
+// estimados); 30s estouravam quase sempre. 60s dá folga sem travar o job.
+const REQUEST_TIMEOUT_MS = 60_000;
 
 @Injectable()
 export class DatajudProvider implements TribunalProvider {
@@ -29,10 +30,10 @@ export class DatajudProvider implements TribunalProvider {
 
     /**
      * Único ponto de I/O com o DataJud. O tutorial do CNJ (2023) usa GET com
-     * corpo, mas tentamos POST primeiro (mais previsível); se o endpoint
-     * recusar o método (405), caímos para GET com corpo — que o `fetch` do
-     * Node não envia, por isso undici. Qual caminho vingou de fato:
-     * confirmar com a sonda real e anotar aqui.
+     * corpo, mas tentamos POST primeiro (mais previsível). Sonda real
+     * (2026-11): o POST responde 200 normalmente — o fallback para GET com
+     * corpo (que o `fetch` do Node não envia, por isso undici) fica só como
+     * defesa, para o caso de o endpoint recusar o método (405).
      */
     private async search(url: string, body: string): Promise<unknown> {
         const apiKey = this.config.get<string>('DATAJUD_API_KEY');
