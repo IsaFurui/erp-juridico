@@ -1,7 +1,7 @@
 import {
     extractDocuments,
+    lookupFromResponse,
     mapMovimentos,
-    movementsFromResponse,
     selectHighestGrauDocument,
 } from './datajud-response';
 
@@ -59,24 +59,33 @@ describe('selectHighestGrauDocument', () => {
 });
 
 describe('mapMovimentos', () => {
-    it('normaliza código, nome, data e complementos', () => {
+    it('normaliza código, nome, órgão julgador, data e complementos', () => {
         const result = mapMovimentos([
             {
                 codigo: 26,
                 nome: 'Distribuição',
                 dataHora: '2024-03-10T09:00:00.000Z',
                 complementosTabelados: [{ codigo: 1 }],
+                orgaoJulgador: { codigo: '16403', nome: 'Tefé' },
             },
         ]);
         expect(result).toHaveLength(1);
         expect(result[0]).toMatchObject({
             code: 26,
             name: 'Distribuição',
+            court: 'Tefé',
             complements: [{ codigo: 1 }],
         });
         expect(result[0].occurredAt.toISOString()).toBe(
             '2024-03-10T09:00:00.000Z',
         );
+    });
+
+    it('órgão julgador ausente vira null', () => {
+        const [m] = mapMovimentos([
+            { codigo: 5, nome: 'x', dataHora: '2024-01-01T00:00:00Z' },
+        ]);
+        expect(m.court).toBeNull();
     });
 
     it('descarta movimento sem código ou sem data válida (não dá pra deduplicar)', () => {
@@ -102,9 +111,11 @@ describe('mapMovimentos', () => {
     });
 });
 
-describe('movementsFromResponse', () => {
-    it('consulta vazia (sem hits) devolve null = não encontrado', () => {
-        expect(movementsFromResponse({ hits: { hits: [] } })).toBeNull();
+describe('lookupFromResponse', () => {
+    it('consulta vazia (sem hits) devolve movements e metadata nulos', () => {
+        const result = lookupFromResponse({ hits: { hits: [] } });
+        expect(result.movements).toBeNull();
+        expect(result.metadata).toBeNull();
     });
 
     it('com um documento de maior grau, devolve só os movimentos dele', () => {
@@ -134,12 +145,43 @@ describe('movementsFromResponse', () => {
                 ],
             },
         };
-        const result = movementsFromResponse(json);
-        expect(result?.map((m) => m.code)).toEqual([2]);
+        const result = lookupFromResponse(json);
+        expect(result.movements?.map((m) => m.code)).toEqual([2]);
+    });
+
+    it('extrai os metadados do processo (classe, assuntos, órgão, ajuizamento)', () => {
+        const json = {
+            hits: {
+                hits: [
+                    hit({
+                        grau: 'JE',
+                        classe: { codigo: 436, nome: 'Juizado Especial Cível' },
+                        assuntos: [{ codigo: 6177, nome: 'Concessão' }],
+                        orgaoJulgador: { codigo: 16403, nome: 'Tefé' },
+                        dataAjuizamento: '20181029000000',
+                        tribunal: 'TRF1',
+                        sistema: { codigo: 1, nome: 'PJe' },
+                        movimentos: [],
+                    }),
+                ],
+            },
+        };
+        const result = lookupFromResponse(json);
+        expect(result.metadata).toEqual({
+            classe: 'Juizado Especial Cível',
+            assuntos: ['Concessão'],
+            orgaoJulgador: 'Tefé',
+            grau: 'JE',
+            tribunal: 'TRF1',
+            sistema: 'PJe',
+            ajuizadoEm: '2018-10-29T00:00:00.000Z',
+        });
     });
 
     it('documento encontrado mas sem movimentos devolve lista vazia (não null)', () => {
-        const json = { hits: { hits: [hit({ grau: 'G1' })] } };
-        expect(movementsFromResponse(json)).toEqual([]);
+        const result = lookupFromResponse({
+            hits: { hits: [hit({ grau: 'G1' })] },
+        });
+        expect(result.movements).toEqual([]);
     });
 });

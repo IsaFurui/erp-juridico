@@ -203,7 +203,7 @@ export class DatajudSyncService implements OnModuleInit, OnModuleDestroy {
         }
 
         const newCount = await this.saveMovements(process.id, lookup.movements);
-        await this.markSynced(process.id);
+        await this.markSynced(process.id, lookup.metadata);
         await this.writeLog(process, {
             outcome: 'SYNCED',
             httpStatus: lookup.httpStatus,
@@ -274,6 +274,7 @@ export class DatajudSyncService implements OnModuleInit, OnModuleDestroy {
                 processId,
                 code: m.code,
                 name: m.name,
+                court: m.court,
                 occurredAt: m.occurredAt,
                 complements:
                     m.complements == null
@@ -285,7 +286,10 @@ export class DatajudSyncService implements OnModuleInit, OnModuleDestroy {
         return result.count;
     }
 
-    private async markSynced(processId: number): Promise<void> {
+    private async markSynced(
+        processId: number,
+        metadata: unknown,
+    ): Promise<void> {
         const next = new Date(
             Date.now() + this.num('DATAJUD_RESYNC_HOURS', 24) * HOUR_MS,
         );
@@ -296,6 +300,10 @@ export class DatajudSyncService implements OnModuleInit, OnModuleDestroy {
                 datajudSyncedAt: new Date(),
                 datajudNextSyncAt: next,
                 datajudNotFoundStreak: 0,
+                datajudMetadata:
+                    metadata == null
+                        ? undefined
+                        : (metadata as Prisma.InputJsonValue),
             },
         });
     }

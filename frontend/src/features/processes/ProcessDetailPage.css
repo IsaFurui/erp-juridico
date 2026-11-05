@@ -66,6 +66,12 @@
   color: var(--muted-foreground);
 }
 
+.datajud-meta {
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
 .detail-name {
   margin: 0 0 8px;
   font-size: 22px;

@@ -9,9 +9,23 @@
 export interface TribunalMovement {
     code: number;
     name: string;
+    /** Órgão julgador do movimento (orgaoJulgador.nome), ou null. */
+    court: string | null;
     occurredAt: Date;
     /** `complementosTabelados` cru, ou null quando ausente. */
     complements: unknown;
+}
+
+/** Metadados do processo no tribunal (só exibição). */
+export interface TribunalMetadata {
+    classe: string | null;
+    assuntos: string[];
+    orgaoJulgador: string | null;
+    grau: string | null;
+    tribunal: string | null;
+    sistema: string | null;
+    /** Data de ajuizamento em ISO, quando foi possível interpretar. */
+    ajuizadoEm: string | null;
 }
 
 /**
@@ -20,6 +34,8 @@ export interface TribunalMovement {
  */
 export interface TribunalLookup {
     movements: TribunalMovement[] | null;
+    /** Metadados do processo (do doc de maior grau), ou null se não achou. */
+    metadata: TribunalMetadata | null;
     /** Método HTTP que funcionou (POST/GET), ou NONE se nem consultou. */
     method: string;
     /** Status HTTP da resposta (0 quando não houve consulta). */

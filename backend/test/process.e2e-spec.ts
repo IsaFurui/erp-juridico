@@ -104,6 +104,7 @@ describe('Processos (e2e)', () => {
                 fetchMovements: () =>
                     Promise.resolve({
                         movements: null,
+                        metadata: null,
                         method: 'NONE',
                         httpStatus: 0,
                         rawResponse: null,

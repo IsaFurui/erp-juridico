@@ -44,6 +44,7 @@ const DETAIL_SELECT = {
     datajudSyncStatus: true,
     datajudSyncedAt: true,
     datajudNextSyncAt: true,
+    datajudMetadata: true,
     statusHistory: {
         select: {
             id: true,
@@ -59,6 +60,7 @@ const DETAIL_SELECT = {
             id: true,
             code: true,
             name: true,
+            court: true,
             occurredAt: true,
             complements: true,
         },

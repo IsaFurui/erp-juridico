@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { request } from 'undici';
 import { datajudAlias, datajudSearchUrl, onlyDigits } from './datajud-alias';
-import { movementsFromResponse } from './datajud-response';
+import { lookupFromResponse } from './datajud-response';
 import type { TribunalLookup, TribunalProvider } from './tribunal-provider';
 
 // A sonda real contra o CNJ mediu 37-45s por consulta (bem acima dos ~17s
@@ -21,6 +21,7 @@ export class DatajudProvider implements TribunalProvider {
             // Defensivo: o job já filtra alias nulo. Sem consulta à rede.
             return {
                 movements: null,
+                metadata: null,
                 method: 'NONE',
                 httpStatus: 0,
                 rawResponse: null,
@@ -35,8 +36,10 @@ export class DatajudProvider implements TribunalProvider {
 
         const started = Date.now();
         const res = await this.search(url, body);
+        const parsed = lookupFromResponse(res.json);
         return {
-            movements: movementsFromResponse(res.json),
+            movements: parsed.movements,
+            metadata: parsed.metadata,
             method: res.method,
             httpStatus: res.statusCode,
             rawResponse: res.json,

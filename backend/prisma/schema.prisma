@@ -179,6 +179,9 @@ model Process {
   datajudSyncedAt       DateTime?
   datajudNextSyncAt     DateTime?
   datajudNotFoundStreak Int               @default(0)
+  /// Metadados do processo vindos do DataJud (classe, assuntos, órgão atual,
+  /// data de ajuizamento, grau, tribunal, sistema). Só exibição — por isso Json.
+  datajudMetadata       Json?
 
   company     Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
   client      Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
@@ -235,6 +238,8 @@ model ProcessMovement {
   processId   Int
   code        Int
   name        String
+  /// Órgão julgador onde o movimento ocorreu (orgaoJulgador.nome do DataJud).
+  court       String?
   occurredAt  DateTime
   complements Json?
   createdAt   DateTime @default(now())

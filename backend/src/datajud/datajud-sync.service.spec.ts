@@ -48,6 +48,15 @@ function setup() {
 function found(movements: TribunalMovement[]): TribunalLookup {
     return {
         movements,
+        metadata: {
+            classe: 'Procedimento Comum',
+            assuntos: ['Concessão'],
+            orgaoJulgador: 'Vara X',
+            grau: 'JE',
+            tribunal: 'TRF1',
+            sistema: 'PJe',
+            ajuizadoEm: '2018-10-29T00:00:00.000Z',
+        },
         method: 'POST',
         httpStatus: 200,
         rawResponse: { hits: { hits: [] } },
@@ -57,6 +66,7 @@ function found(movements: TribunalMovement[]): TribunalLookup {
 
 const NOT_FOUND: TribunalLookup = {
     movements: null,
+    metadata: null,
     method: 'POST',
     httpStatus: 200,
     rawResponse: { hits: { hits: [] } },
@@ -78,6 +88,7 @@ function candidate(over: Partial<SyncCandidate> = {}): SyncCandidate {
 const MOV: TribunalMovement = {
     code: 26,
     name: 'Distribuição',
+    court: 'Vara X',
     occurredAt: new Date('2024-01-01T00:00:00Z'),
     complements: null,
 };

@@ -1,11 +1,11 @@
-import type { TribunalMovement } from './tribunal-provider';
+import type { TribunalMetadata, TribunalMovement } from './tribunal-provider';
 
 /**
  * Parsing da resposta do DataJud. Fica isolado aqui, sem rede, para ser
  * testável com um JSON de exemplo. Shape confirmado por sonda real (2026-11):
- * topo `took/timed_out/_shards/hits`, com `hits.hits[]._source.{grau,
- * movimentos}`. Atenção: `grau` traz valores como "JE" (juizado especial),
- * não só "G1"/"G2".
+ * topo `took/timed_out/_shards/hits`, com `hits.hits[]._source` trazendo
+ * `grau`, `movimentos[]` e metadados (classe, assuntos, orgaoJulgador...).
+ * Atenção: `grau` traz valores como "JE" (juizado especial), não só "G1"/"G2".
  */
 
 interface DatajudMovimento {
@@ -13,15 +13,29 @@ interface DatajudMovimento {
     nome?: string;
     dataHora?: string;
     complementosTabelados?: unknown;
+    orgaoJulgador?: unknown;
 }
 
 interface DatajudSource {
     grau?: string | null;
     movimentos?: DatajudMovimento[];
+    classe?: unknown;
+    assuntos?: unknown;
+    orgaoJulgador?: unknown;
+    dataAjuizamento?: unknown;
+    tribunal?: unknown;
+    sistema?: unknown;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
+}
+
+/** Lê `.nome` (string) de um objeto aninhado, ou null. */
+function nomeOf(value: unknown): string | null {
+    return isRecord(value) && typeof value.nome === 'string'
+        ? value.nome
+        : null;
 }
 
 /** Extrai os `_source` de `hits.hits[]`; lista vazia quando nada veio. */
@@ -78,6 +92,7 @@ export function mapMovimentos(
         out.push({
             code: Number(mov.codigo),
             name: String(mov.nome ?? ''),
+            court: nomeOf(mov.orgaoJulgador),
             occurredAt,
             complements: mov.complementosTabelados ?? null,
         });
@@ -85,12 +100,45 @@ export function mapMovimentos(
     return out;
 }
 
-/** Junta o pipeline: resposta crua → movimentos do doc de maior grau. */
-export function movementsFromResponse(
-    json: unknown,
-): TribunalMovement[] | null {
-    const docs = extractDocuments(json);
-    const best = selectHighestGrauDocument(docs);
-    if (!best) return null; // consulta vazia = não encontrado
-    return mapMovimentos(best.movimentos);
+// `dataAjuizamento` vem como "AAAAMMDDhhmmss"; vira ISO (só a data basta).
+function parseAjuizamento(raw: unknown): string | null {
+    if (typeof raw !== 'string') return null;
+    const m = /^(\d{4})(\d{2})(\d{2})/.exec(raw);
+    if (!m) return null;
+    const date = new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00.000Z`);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+export function extractMetadata(source: DatajudSource): TribunalMetadata {
+    const assuntos = Array.isArray(source.assuntos)
+        ? source.assuntos
+              .map((a) => nomeOf(a))
+              .filter((n): n is string => n !== null)
+        : [];
+
+    return {
+        classe: nomeOf(source.classe),
+        assuntos,
+        orgaoJulgador: nomeOf(source.orgaoJulgador),
+        grau: typeof source.grau === 'string' ? source.grau : null,
+        tribunal: typeof source.tribunal === 'string' ? source.tribunal : null,
+        sistema: nomeOf(source.sistema),
+        ajuizadoEm: parseAjuizamento(source.dataAjuizamento),
+    };
+}
+
+/**
+ * Pipeline: resposta crua → movimentos + metadados do doc de maior grau.
+ * `movements`/`metadata` nulos = consulta vazia (não encontrado).
+ */
+export function lookupFromResponse(json: unknown): {
+    movements: TribunalMovement[] | null;
+    metadata: TribunalMetadata | null;
+} {
+    const best = selectHighestGrauDocument(extractDocuments(json));
+    if (!best) return { movements: null, metadata: null };
+    return {
+        movements: mapMovimentos(best.movimentos),
+        metadata: extractMetadata(best),
+    };
 }

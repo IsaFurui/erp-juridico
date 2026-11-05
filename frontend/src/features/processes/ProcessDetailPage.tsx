@@ -28,6 +28,24 @@ function toNumber(value: string | null): number {
   return Number(value ?? 0)
 }
 
+// Junta os complementosTabelados num texto curto (ex.: "designada · instrução").
+function complementText(complements: unknown): string {
+  if (!Array.isArray(complements)) return ''
+  return complements
+    .map((c) =>
+      c && typeof c === 'object' && 'nome' in c
+        ? String((c as { nome: unknown }).nome ?? '')
+        : '',
+    )
+    .filter(Boolean)
+    .join(' · ')
+}
+
+// Linha de rodapé do movimento: órgão julgador + complementos.
+function movementDetail(m: ProcessDetail['movements'][number]): string {
+  return [m.court, complementText(m.complements)].filter(Boolean).join(' · ')
+}
+
 // Texto do estado da última consulta ao DataJud.
 function syncStateLabel(p: ProcessDetail): string {
   switch (p.datajudSyncStatus) {
@@ -311,18 +329,63 @@ function ProcessDetailPage() {
                 <p className="detail-datajud-state">
                   {syncStateLabel(process)}
                 </p>
+
+                {process.datajudMetadata && (
+                  <dl className="detail-kv datajud-meta">
+                    {process.datajudMetadata.classe && (
+                      <>
+                        <dt>Classe</dt>
+                        <dd>{process.datajudMetadata.classe}</dd>
+                      </>
+                    )}
+                    {process.datajudMetadata.assuntos.length > 0 && (
+                      <>
+                        <dt>Assuntos</dt>
+                        <dd>{process.datajudMetadata.assuntos.join(', ')}</dd>
+                      </>
+                    )}
+                    {process.datajudMetadata.orgaoJulgador && (
+                      <>
+                        <dt>Órgão atual</dt>
+                        <dd>{process.datajudMetadata.orgaoJulgador}</dd>
+                      </>
+                    )}
+                    {process.datajudMetadata.ajuizadoEm && (
+                      <>
+                        <dt>Ajuizado em</dt>
+                        <dd>{formatDate(process.datajudMetadata.ajuizadoEm)}</dd>
+                      </>
+                    )}
+                    {process.datajudMetadata.tribunal && (
+                      <>
+                        <dt>Tribunal</dt>
+                        <dd>
+                          {process.datajudMetadata.tribunal}
+                          {process.datajudMetadata.grau
+                            ? ` · ${process.datajudMetadata.grau}`
+                            : ''}
+                        </dd>
+                      </>
+                    )}
+                  </dl>
+                )}
+
                 {process.movements.length === 0 ? (
                   <p className="ui-empty">Nenhum andamento importado ainda.</p>
                 ) : (
                   <ol className="timeline">
-                    {process.movements.map((m) => (
-                      <li key={m.id} className="tl-item">
-                        <span className="tl-date">
-                          {formatDate(m.occurredAt)}
-                        </span>
-                        <span className="tl-status">{m.name}</span>
-                      </li>
-                    ))}
+                    {process.movements.map((m) => {
+                      const detail = movementDetail(m)
+                      return (
+                        <li key={m.id} className="tl-item">
+                          <span className="tl-date">
+                            {formatDate(m.occurredAt)}
+                          </span>
+                          <span className="tl-status">{m.name}</span>
+                          {detail && <span className="tl-who">{detail}</span>}
+                        </li>
+                      )
+                    })}
                   </ol>
                 )}
               </>

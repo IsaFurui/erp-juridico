@@ -182,8 +182,20 @@ export interface ProcessMovement {
   id: number
   code: number
   name: string
+  court: string | null
   occurredAt: string
   complements: unknown
+}
+
+/** Metadados do processo vindos do DataJud (só exibição). */
+export interface DatajudMetadata {
+  classe: string | null
+  assuntos: string[]
+  orgaoJulgador: string | null
+  grau: string | null
+  tribunal: string | null
+  sistema: string | null
+  ajuizadoEm: string | null
 }
 
 /** Detalhe = item + linha do tempo de status + monitoramento DataJud. */
@@ -192,6 +204,7 @@ export interface ProcessDetail extends ProcessListItem {
   datajudSyncStatus: DatajudSyncStatus
   datajudSyncedAt: string | null
   datajudNextSyncAt: string | null
+  datajudMetadata: DatajudMetadata | null
   movements: ProcessMovement[]
 }
 
