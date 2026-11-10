@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { APP_ROUTES } from '../../../lib/constants'
@@ -14,6 +14,7 @@ type Mode = 'tenant' | 'platform'
 function Login() {
   const { login, loginPlatform } = useAuth()
   const navigate = useNavigate()
+  const formRef = useRef<HTMLFormElement>(null)
   const [mode, setMode] = useState<Mode>('tenant')
   const [companyId, setCompanyId] = useState('')
   const [userLogin, setUserLogin] = useState('')
@@ -28,11 +29,27 @@ function Login() {
     setError(null)
   }
 
-  const handleSubmit = async (e: FormEvent) => {
+  // Backup: alguns inputs (number, autofill) podem não despachar o submit
+  // nativo do form ao pressionar Enter — forçamos aqui.
+  const handleEnter = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      formRef.current?.requestSubmit()
+    }
+  }
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError(null)
 
-    const parsedCompanyId = Number(companyId)
+    // Lê direto do DOM porque o autofill do navegador nem sempre dispara
+    // onChange — nesses casos o state fica vazio e a validação barra o Enter.
+    const form = new FormData(e.currentTarget)
+    const rawCompanyId = (form.get('companyId') as string | null) ?? companyId
+    const rawLogin = (form.get('login') as string | null) ?? userLogin
+    const rawPassword = (form.get('password') as string | null) ?? password
+
+    const parsedCompanyId = Number(rawCompanyId)
     if (
       !isPlatformMode &&
       (!Number.isInteger(parsedCompanyId) || parsedCompanyId <= 0)
@@ -40,11 +57,11 @@ function Login() {
       setError('Informe um ID de empresa válido (número positivo).')
       return
     }
-    if (!userLogin.trim()) {
+    if (!rawLogin.trim()) {
       setError('Informe seu login.')
       return
     }
-    if (password.length < 6) {
+    if (rawPassword.length < 6) {
       setError('A senha deve ter ao menos 6 caracteres.')
       return
     }
@@ -52,12 +69,12 @@ function Login() {
     setLoading(true)
     try {
       if (isPlatformMode) {
-        await loginPlatform({ login: userLogin.trim(), password })
+        await loginPlatform({ login: rawLogin.trim(), password: rawPassword })
       } else {
         await login({
           companyId: parsedCompanyId,
-          login: userLogin.trim(),
-          password,
+          login: rawLogin.trim(),
+          password: rawPassword,
         })
       }
       navigate(APP_ROUTES.dashboard, { replace: true })
@@ -109,17 +126,24 @@ function Login() {
           </button>
         </div>
 
-        <form className="login-form" onSubmit={handleSubmit} noValidate>
+        <form
+          ref={formRef}
+          className="login-form"
+          onSubmit={handleSubmit}
+          noValidate
+        >
           {!isPlatformMode && (
             <label className="field">
               <span className="field-label">ID da Empresa</span>
               <input
                 type="number"
+                name="companyId"
                 inputMode="numeric"
                 min={1}
                 placeholder="Ex.: 1"
                 value={companyId}
                 onChange={(e) => setCompanyId(e.target.value)}
+                onKeyDown={handleEnter}
               />
             </label>
           )}
@@ -128,10 +152,12 @@ function Login() {
             <span className="field-label">Login</span>
             <input
               type="text"
+              name="login"
               autoComplete="username"
               placeholder={isPlatformMode ? 'root' : 'joao.silva'}
               value={userLogin}
               onChange={(e) => setUserLogin(e.target.value)}
+              onKeyDown={handleEnter}
             />
           </label>
 
@@ -139,10 +165,12 @@ function Login() {
             <span className="field-label">Senha</span>
             <input
               type="password"
+              name="password"
               autoComplete="current-password"
               placeholder="••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={handleEnter}
             />
           </label>
 
