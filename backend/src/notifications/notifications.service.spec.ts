@@ -40,7 +40,9 @@ describe('NotificationsService', () => {
             });
             const data = createMany.mock.calls[0][0].data;
             expect(data).toHaveLength(2);
-            expect(data.map((d: { userId: number }) => d.userId)).toEqual([2, 3]);
+            expect(data.map((d: { userId: number }) => d.userId)).toEqual([
+                2, 3,
+            ]);
             expect(data[0]).toMatchObject({
                 companyId: 7,
                 type: 'PROCESS_CREATED',

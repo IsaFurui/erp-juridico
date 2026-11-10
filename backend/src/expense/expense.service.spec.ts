@@ -19,7 +19,15 @@ describe('ExpenseService — escopo de tenant', () => {
     const $transaction = jest.fn();
 
     const prisma = {
-        expense: { findMany, count, aggregate, groupBy, findFirst, create, update },
+        expense: {
+            findMany,
+            count,
+            aggregate,
+            groupBy,
+            findFirst,
+            create,
+            update,
+        },
         $transaction,
     } as unknown as PrismaService;
 
@@ -96,7 +104,13 @@ describe('ExpenseService — escopo de tenant', () => {
         it('agrega com o mesmo where (empresa + filtros) e devolve total como string', async () => {
             $transaction.mockResolvedValueOnce([
                 { _sum: { amount: '1500' }, _count: 3 },
-                [{ category: ExpenseCategory.ALUGUEL, _sum: { amount: '1500' }, _count: 3 }],
+                [
+                    {
+                        category: ExpenseCategory.ALUGUEL,
+                        _sum: { amount: '1500' },
+                        _count: 3,
+                    },
+                ],
             ]);
 
             const result = await service.summary(7, {
@@ -146,7 +160,11 @@ describe('ExpenseService — escopo de tenant', () => {
             create.mockResolvedValue({ id: 1 });
 
             await service.create(
-                { name: 'Aluguel', amount: 3500, category: ExpenseCategory.ALUGUEL },
+                {
+                    name: 'Aluguel',
+                    amount: 3500,
+                    category: ExpenseCategory.ALUGUEL,
+                },
                 7,
             );
 
