@@ -4,6 +4,7 @@ import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import Icon from '../../components/ui/Icon'
 import { formatBRL } from '../../lib/money'
+import { formatProcessCode } from '../../lib/process-code'
 import { APP_ROUTES } from '../../lib/constants'
 import type { ProcessDetail, ProcessStatus } from '../../lib/api'
 import { getProcess, listProcessStatuses, syncProcess } from './processes.api'
@@ -75,6 +76,9 @@ function ProcessDetailPage() {
 
   const [editOpen, setEditOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
+
+  const MOVEMENTS_PAGE_SIZE = 10
+  const [movementsPage, setMovementsPage] = useState(1)
 
   // Sincronização sob demanda: dispara (202) e faz polling do processo até o
   // estado mudar, porque a consulta ao DataJud leva ~40s.
@@ -232,7 +236,7 @@ function ProcessDetailPage() {
 
       <div className="detail-head">
         <div className="detail-head-info">
-          <div className="detail-code">{process.code}</div>
+          <div className="detail-code">{formatProcessCode(process.code)}</div>
           <h1 className="detail-name">{process.name}</h1>
           <div className="detail-badges">
             <Badge variant={statusVariant(process.status.description)}>
@@ -301,6 +305,31 @@ function ProcessDetailPage() {
                 Total ajustado no encerramento. A soma de Entrada + Esperado era{' '}
                 {formatBRL(derived)}.
               </p>
+            )}
+          </section>
+        </div>
+
+        <div className="detail-side">
+          <section className="ui-card detail-panel">
+            <h2 className="detail-panel-title">Histórico de status</h2>
+            {process.statusHistory.length === 0 ? (
+              <p className="ui-empty">Sem histórico ainda.</p>
+            ) : (
+              <ol className="timeline">
+                {process.statusHistory.map((h, index) => (
+                  <li
+                    key={h.id}
+                    className={`tl-item${index === 0 ? ' current' : ''}`}
+                  >
+                    <span className="tl-date">{formatDate(h.changedAt)}</span>
+                    <span className="tl-status">{h.status.description}</span>
+                    <span className="tl-who">
+                      {h.user.name}
+                      {h.note ? ` · ${h.note}` : ''}
+                    </span>
+                  </li>
+                ))}
+              </ol>
             )}
           </section>
 
@@ -373,48 +402,76 @@ function ProcessDetailPage() {
                 {process.movements.length === 0 ? (
                   <p className="ui-empty">Nenhum andamento importado ainda.</p>
                 ) : (
-                  <ol className="timeline">
-                    {process.movements.map((m) => {
-                      const detail = movementDetail(m)
-                      return (
-                        <li key={m.id} className="tl-item">
-                          <span className="tl-date">
-                            {formatDate(m.occurredAt)}
-                          </span>
-                          <span className="tl-status">{m.name}</span>
-                          {detail && <span className="tl-who">{detail}</span>}
-                        </li>
-                      )
-                    })}
-                  </ol>
+                  (() => {
+                    const total = process.movements.length
+                    const totalPages = Math.max(
+                      1,
+                      Math.ceil(total / MOVEMENTS_PAGE_SIZE),
+                    )
+                    const currentPage = Math.min(movementsPage, totalPages)
+                    const start = (currentPage - 1) * MOVEMENTS_PAGE_SIZE
+                    const pageItems = process.movements.slice(
+                      start,
+                      start + MOVEMENTS_PAGE_SIZE,
+                    )
+                    return (
+                      <>
+                        <ol className="timeline">
+                          {pageItems.map((m) => {
+                            const detail = movementDetail(m)
+                            return (
+                              <li key={m.id} className="tl-item">
+                                <span className="tl-date">
+                                  {formatDate(m.occurredAt)}
+                                </span>
+                                <span className="tl-status">{m.name}</span>
+                                {detail && (
+                                  <span className="tl-who">{detail}</span>
+                                )}
+                              </li>
+                            )
+                          })}
+                        </ol>
+                        {totalPages > 1 && (
+                          <nav
+                            className="detail-datajud-pagination"
+                            aria-label="Paginação de andamentos"
+                          >
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={currentPage <= 1}
+                              onClick={() =>
+                                setMovementsPage((p) => Math.max(1, p - 1))
+                              }
+                            >
+                              Anterior
+                            </Button>
+                            <span className="detail-datajud-page-info">
+                              Página {currentPage} de {totalPages}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={currentPage >= totalPages}
+                              onClick={() =>
+                                setMovementsPage((p) =>
+                                  Math.min(totalPages, p + 1),
+                                )
+                              }
+                            >
+                              Próxima
+                            </Button>
+                          </nav>
+                        )}
+                      </>
+                    )
+                  })()
                 )}
               </>
             )}
           </section>
         </div>
-
-        <section className="ui-card detail-panel">
-          <h2 className="detail-panel-title">Histórico de status</h2>
-          {process.statusHistory.length === 0 ? (
-            <p className="ui-empty">Sem histórico ainda.</p>
-          ) : (
-            <ol className="timeline">
-              {process.statusHistory.map((h, index) => (
-                <li
-                  key={h.id}
-                  className={`tl-item${index === 0 ? ' current' : ''}`}
-                >
-                  <span className="tl-date">{formatDate(h.changedAt)}</span>
-                  <span className="tl-status">{h.status.description}</span>
-                  <span className="tl-who">
-                    {h.user.name}
-                    {h.note ? ` · ${h.note}` : ''}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
       </div>
 
       {editOpen && (
