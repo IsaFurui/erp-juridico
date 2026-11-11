@@ -4,6 +4,7 @@ import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import Icon from '../../components/ui/Icon'
 import { formatBRL } from '../../lib/money'
+import { formatProcessCode } from '../../lib/process-code'
 import { processDetailPath } from '../../lib/constants'
 import type {
   Client,
@@ -231,7 +232,9 @@ function ProcessesPage() {
                 onClick={() => navigate(processDetailPath(p.id))}
               >
                 <div className="process-card-top">
-                  <span className="process-card-code">{p.code}</span>
+                  <span className="process-card-code">
+                    {formatProcessCode(p.code)}
+                  </span>
                   <span className="process-card-badges">
                     {p.confidentiality === 'CONFIDENTIAL' && (
                       <Badge variant="warning">🔒 Sigiloso</Badge>
