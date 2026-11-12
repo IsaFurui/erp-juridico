@@ -280,6 +280,77 @@ function StatusSection() {
 
 /* ------------------------------- tipos ---------------------------------- */
 
+function TypeModal({
+  initial,
+  onClose,
+  onSaved,
+}: {
+  initial: ProcessType | null
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [defaultConfidential, setDefaultConfidential] = useState(
+    initial?.defaultConfidential ?? false,
+  )
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (name.trim().length < 2) return setError('Informe pelo menos 2 letras.')
+    setSaving(true)
+    setError(null)
+    try {
+      if (initial) {
+        await updateType(initial.id, { name: name.trim(), defaultConfidential })
+      } else {
+        await createType(name.trim(), defaultConfidential)
+      }
+      onSaved()
+      onClose()
+    } catch (err) {
+      setError(errorMessage(err))
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal open title={initial ? 'Editar tipo' : 'Novo tipo'} onClose={onClose}>
+      <form className="catalog-form" onSubmit={submit}>
+        <Input
+          label="Nome do tipo"
+          name="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoFocus
+        />
+        <label className="catalog-check">
+          <input
+            type="checkbox"
+            checked={defaultConfidential}
+            onChange={(e) => setDefaultConfidential(e.target.checked)}
+          />
+          Sigiloso por padrão (processos deste tipo nascem em segredo de justiça)
+        </label>
+        {error && (
+          <p className="ui-alert ui-alert--error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="ui-modal-footer">
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? 'Salvando…' : 'Salvar'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
 function TypeSection() {
   const [items, setItems] = useState<ProcessType[]>([])
   const [loading, setLoading] = useState(true)
@@ -338,6 +409,7 @@ function TypeSection() {
           <thead>
             <tr>
               <th>Nome</th>
+              <th>Sigilo padrão</th>
               <th aria-label="Ações" />
             </tr>
           </thead>
@@ -345,6 +417,11 @@ function TypeSection() {
             {items.map((t) => (
               <tr key={t.id}>
                 <td>{t.name}</td>
+                <td>
+                  <Badge variant={t.defaultConfidential ? 'warning' : 'neutral'}>
+                    {t.defaultConfidential ? 'Sigiloso' : 'Público'}
+                  </Badge>
+                </td>
                 <td className="catalog-actions">
                   <Button variant="outline" size="sm" onClick={() => setModal(t)}>
                     Editar
@@ -364,16 +441,11 @@ function TypeSection() {
       )}
 
       {modal && (
-        <NameModal
-          title={modal === 'new' ? 'Novo tipo' : 'Editar tipo'}
-          label="Nome do tipo"
-          initial={modal === 'new' ? '' : modal.name}
+        <TypeModal
+          key={modal === 'new' ? 'new' : modal.id}
+          initial={modal === 'new' ? null : modal}
           onClose={() => setModal(null)}
-          onSave={async (name) => {
-            if (modal === 'new') await createType(name)
-            else await updateType(modal.id, name)
-            refresh()
-          }}
+          onSaved={refresh}
         />
       )}
     </div>

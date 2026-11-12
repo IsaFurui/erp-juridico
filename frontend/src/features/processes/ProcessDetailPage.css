@@ -42,6 +42,52 @@
   margin-bottom: 4px;
 }
 
+.detail-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-datajud-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.detail-datajud-head .detail-panel-title {
+  margin: 0;
+}
+
+.detail-datajud-state {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+.datajud-meta {
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-datajud-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.detail-datajud-page-info {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
 .detail-name {
   margin: 0 0 8px;
   font-size: 22px;
@@ -68,7 +114,8 @@
   }
 }
 
-.detail-main {
+.detail-main,
+.detail-side {
   display: flex;
   flex-direction: column;
   gap: 16px;

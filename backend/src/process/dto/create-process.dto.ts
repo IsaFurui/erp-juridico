@@ -7,7 +7,9 @@ import {
     IsOptional,
     IsNumber,
     Min,
+    IsEnum,
 } from 'class-validator';
+import { Confidentiality } from '../enums/confidentiality.enum';
 
 export class CreateProcessDto {
     @ApiProperty({
@@ -79,4 +81,13 @@ export class CreateProcessDto {
     @IsNumber({ maxDecimalPlaces: 2 })
     @Min(0)
     totalAmount?: number;
+
+    @ApiPropertyOptional({
+        enum: Confidentiality,
+        description:
+            'Sigilo do processo. Se omitido, herda o padrão do tipo (defaultConfidential).',
+    })
+    @IsOptional()
+    @IsEnum(Confidentiality)
+    confidentiality?: Confidentiality;
 }

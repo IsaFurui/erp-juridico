@@ -75,7 +75,11 @@ describe('Dashboard (e2e)', () => {
         tokenOperacional = await login(company.id, opLogin);
 
         const client = await prisma.client.create({
-            data: { name: 'Cliente Dash', cpfCnpj: `88${suffix}`, companyId: company.id },
+            data: {
+                name: 'Cliente Dash',
+                cpfCnpj: `88${suffix}`,
+                companyId: company.id,
+            },
         });
         const status = await prisma.processStatus.findFirst({
             where: { isFinal: false },

@@ -112,9 +112,14 @@ export interface ProcessStatus {
   isFinal: boolean
 }
 
+/** Sigilo do processo. Espelha o enum `Confidentiality` do backend. */
+export type Confidentiality = 'PUBLIC' | 'CONFIDENTIAL'
+
 export interface ProcessType {
   id: number
   name: string
+  /** Sigilo sugerido ao criar um processo deste tipo. */
+  defaultConfidential: boolean
 }
 
 export interface ProcessSubtype {
@@ -147,6 +152,7 @@ export interface ProcessListItem {
   fixedAmount: string | null
   expectedAmount: string | null
   totalAmount: string
+  confidentiality: Confidentiality
   client: ProcessRef
   type: ProcessRef
   subtype: ProcessRef | null
@@ -164,9 +170,42 @@ export interface ProcessStatusHistoryItem {
   user: { id: number; name: string }
 }
 
-/** Detalhe = item + a linha do tempo de status. */
+/** Estado do monitoramento DataJud. Espelha o enum do backend. */
+export type DatajudSyncStatus =
+  | 'NEVER_SYNCED'
+  | 'SYNCED'
+  | 'NOT_FOUND'
+  | 'ERROR'
+
+/** Andamento processual importado do DataJud. */
+export interface ProcessMovement {
+  id: number
+  code: number
+  name: string
+  court: string | null
+  occurredAt: string
+  complements: unknown
+}
+
+/** Metadados do processo vindos do DataJud (só exibição). */
+export interface DatajudMetadata {
+  classe: string | null
+  assuntos: string[]
+  orgaoJulgador: string | null
+  grau: string | null
+  tribunal: string | null
+  sistema: string | null
+  ajuizadoEm: string | null
+}
+
+/** Detalhe = item + linha do tempo de status + monitoramento DataJud. */
 export interface ProcessDetail extends ProcessListItem {
   statusHistory: ProcessStatusHistoryItem[]
+  datajudSyncStatus: DatajudSyncStatus
+  datajudSyncedAt: string | null
+  datajudNextSyncAt: string | null
+  datajudMetadata: DatajudMetadata | null
+  movements: ProcessMovement[]
 }
 
 export interface ListProcessesParams {
@@ -188,6 +227,7 @@ export interface CreateProcessPayload {
   responsibleId?: number | null
   fixedAmount?: number
   expectedAmount?: number
+  confidentiality?: Confidentiality
 }
 
 export interface UpdateProcessPayload {
@@ -199,6 +239,7 @@ export interface UpdateProcessPayload {
   responsibleId?: number | null
   fixedAmount?: number
   expectedAmount?: number
+  confidentiality?: Confidentiality
 }
 
 /** Lista enxuta de colegas do escritório (para o picker de responsável). */
@@ -543,6 +584,10 @@ export const processesApi = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+  // Dispara a sincronização com o DataJud (responde 202; o resultado chega
+  // depois — a tela faz polling do processo).
+  sync: (id: number): Promise<{ status: string }> =>
+    request(`/processes/${id}/sync`, { method: 'POST' }),
 }
 
 export const expensesApi = {
@@ -610,12 +655,18 @@ export const processTypeApi = {
   listAll: (): Promise<ProcessType[]> => request('/process-type'),
   listSubtypes: (id: number): Promise<ProcessSubtype[]> =>
     request(`/process-type/${id}/subtypes`),
-  create: (payload: { name: string }): Promise<ProcessType> =>
+  create: (payload: {
+    name: string
+    defaultConfidential?: boolean
+  }): Promise<ProcessType> =>
     request('/process-type', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  update: (id: number, payload: { name: string }): Promise<ProcessType> =>
+  update: (
+    id: number,
+    payload: { name?: string; defaultConfidential?: boolean },
+  ): Promise<ProcessType> =>
     request(`/process-type/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),

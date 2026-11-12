@@ -31,6 +31,26 @@ enum ExpenseCategory {
   OUTROS
 }
 
+/// Sigilo do processo. É estado do próprio processo: o tipo só dá o valor
+/// inicial (ProcessType.defaultConfidential), o advogado corrige na mão.
+/// Processo CONFIDENTIAL fica fora do monitoramento automático do DataJud
+/// (a API pública não retorna processo em segredo de justiça).
+enum Confidentiality {
+  PUBLIC
+  CONFIDENTIAL
+}
+
+/// Estado da última consulta ao DataJud para um processo.
+/// NEVER_SYNCED: nunca consultado (inclui processo sem alias de tribunal).
+/// SYNCED: encontrado e movimentos importados. NOT_FOUND: consulta vazia
+/// (recente ou em sigilo não marcado — não é erro). ERROR: falha de rede/HTTP.
+enum DatajudSyncStatus {
+  NEVER_SYNCED
+  SYNCED
+  NOT_FOUND
+  ERROR
+}
+
 /// Dono da plataforma. Fica fora da árvore de Company de propósito: não é um
 /// escritório, administra todos. Nasce pelo seed, nunca pela API.
 model PlatformAdmin {
@@ -110,8 +130,11 @@ model ProcessStatus {
 }
 
 model ProcessType {
-  id   Int    @id @default(autoincrement())
-  name String @unique
+  id                 Int     @id @default(autoincrement())
+  name               String  @unique
+  /// Valor inicial de sigilo sugerido ao criar um processo deste tipo. Só o
+  /// root edita (rota de escrita de catálogo). Não altera processos já criados.
+  defaultConfidential Boolean @default(false)
 
   processes Process[]
   subtypes  ProcessSubtype[]
@@ -144,6 +167,22 @@ model Process {
   subtypeId      Int?
   responsibleId  Int?
 
+  confidentiality   Confidentiality   @default(PUBLIC)
+  /// Monitoramento DataJud. O job só pega PUBLIC com datajudNextSyncAt vencido
+  /// ou nulo e datajudAlias não nulo. datajudAlias é derivado do code (número
+  /// CNJ) e gravado na criação/edição — número sem tribunal reconhecível fica
+  /// com alias nulo e, portanto, fora do job. datajudNextSyncAt cresce no
+  /// backoff de NOT_FOUND (datajudNotFoundStreak conta as tentativas vazias
+  /// seguidas); datajudSyncedAt marca a última consulta bem-sucedida.
+  datajudSyncStatus     DatajudSyncStatus @default(NEVER_SYNCED)
+  datajudAlias          String?
+  datajudSyncedAt       DateTime?
+  datajudNextSyncAt     DateTime?
+  datajudNotFoundStreak Int               @default(0)
+  /// Metadados do processo vindos do DataJud (classe, assuntos, órgão atual,
+  /// data de ajuizamento, grau, tribunal, sistema). Só exibição — por isso Json.
+  datajudMetadata       Json?
+
   company     Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
   client      Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
   status      ProcessStatus   @relation(fields: [statusId], references: [id], onDelete: Restrict)
@@ -152,6 +191,8 @@ model Process {
   responsible User?           @relation(fields: [responsibleId], references: [id], onDelete: SetNull)
 
   statusHistory ProcessStatusHistory[]
+  movements     ProcessMovement[]
+  datajudLogs   DatajudSyncLog[]
 }
 
 /// Notificação de um usuário (destinatário). Uma linha por pessoa, com estado
@@ -185,4 +226,46 @@ model ProcessStatusHistory {
   process Process       @relation(fields: [processId], references: [id], onDelete: Restrict)
   status  ProcessStatus @relation(fields: [statusId], references: [id], onDelete: Restrict)
   user    User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+/// Movimento processual importado do DataJud (andamento no tribunal). É coisa
+/// distinta de ProcessStatusHistory (essa é a troca de status DENTRO do
+/// sistema). `code`/`name` vêm da tabela de movimentos do CNJ; `occurredAt` é
+/// o `dataHora` do movimento. A unique (processId, code, occurredAt) deduplica
+/// entre sincronizações. `complements` guarda os complementosTabelados crus.
+model ProcessMovement {
+  id          Int      @id @default(autoincrement())
+  processId   Int
+  code        Int
+  name        String
+  /// Órgão julgador onde o movimento ocorreu (orgaoJulgador.nome do DataJud).
+  court       String?
+  occurredAt  DateTime
+  complements Json?
+  createdAt   DateTime @default(now())
+
+  process Process @relation(fields: [processId], references: [id], onDelete: Restrict)
+
+  @@unique([processId, code, occurredAt])
+}
+
+/// Log de auditoria de cada consulta ao DataJud: o que foi perguntado, o que
+/// voltou (cru) e o desfecho. Serve de rastro ("o que o tribunal retornou e
+/// quando") e de apoio a debug/reprocesso sem bater de novo na API (lenta).
+model DatajudSyncLog {
+  id            Int               @id @default(autoincrement())
+  processId     Int
+  createdAt     DateTime          @default(now())
+  outcome       DatajudSyncStatus // SYNCED | NOT_FOUND | ERROR
+  httpStatus    Int?
+  method        String?
+  durationMs    Int?
+  movementCount Int? // novos movimentos inseridos (quando SYNCED)
+  request       Json?
+  response      Json?
+  error         String?
+
+  process Process @relation(fields: [processId], references: [id], onDelete: Restrict)
+
+  @@index([processId, createdAt])
 }

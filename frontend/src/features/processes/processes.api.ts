@@ -52,6 +52,10 @@ export function changeProcessStatus(
   return processesApi.changeStatus(id, payload)
 }
 
+export function syncProcess(id: number): Promise<{ status: string }> {
+  return processesApi.sync(id)
+}
+
 export function listProcessStatuses(): Promise<ProcessStatus[]> {
   return processStatusApi.listAll()
 }

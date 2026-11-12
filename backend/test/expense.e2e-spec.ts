@@ -39,11 +39,7 @@ describe('Despesas (e2e)', () => {
         return company;
     }
 
-    async function createUser(
-        companyId: number,
-        role: UserRole,
-        tag: string,
-    ) {
+    async function createUser(companyId: number, role: UserRole, tag: string) {
         const login = `exp.${tag}.${suffix}`;
         await prisma.user.create({
             data: {
@@ -65,10 +61,7 @@ describe('Despesas (e2e)', () => {
         return (res.body as { access_token: string }).access_token;
     }
 
-    async function createExpense(
-        token: string,
-        body: Record<string, unknown>,
-    ) {
+    async function createExpense(token: string, body: Record<string, unknown>) {
         const res = await request(server)
             .post('/expenses')
             .set('Authorization', `Bearer ${token}`)
@@ -202,6 +195,8 @@ describe('Despesas (e2e)', () => {
         // Só sobrou a despesa de aluguel (editada para 3600); a temp foi excluída.
         expect(Number(body.totalAmount)).toBe(3600);
         expect(body.count).toBe(1);
-        expect(body.byCategory.some((c) => c.category === 'ALUGUEL')).toBe(true);
+        expect(body.byCategory.some((c) => c.category === 'ALUGUEL')).toBe(
+            true,
+        );
     });
 });

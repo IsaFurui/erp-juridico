@@ -4,7 +4,11 @@ import { UserRole } from '../auth/enums/user-role.enum';
 
 describe('DashboardService', () => {
     const processStatus = { findMany: jest.fn() };
-    const process = { groupBy: jest.fn(), count: jest.fn(), aggregate: jest.fn() };
+    const process = {
+        groupBy: jest.fn(),
+        count: jest.fn(),
+        aggregate: jest.fn(),
+    };
     const processStatusHistory = { count: jest.fn(), findMany: jest.fn() };
     const client = { count: jest.fn() };
     const expense = { aggregate: jest.fn(), groupBy: jest.fn() };

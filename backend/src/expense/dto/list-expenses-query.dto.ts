@@ -4,7 +4,10 @@ import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { ExpenseCategory } from '../enums/expense-category.enum';
 
 export class ListExpensesQueryDto extends PaginationQueryDto {
-    @ApiPropertyOptional({ enum: ExpenseCategory, description: 'Filtra por categoria' })
+    @ApiPropertyOptional({
+        enum: ExpenseCategory,
+        description: 'Filtra por categoria',
+    })
     @IsOptional()
     @IsEnum(ExpenseCategory)
     category?: ExpenseCategory;

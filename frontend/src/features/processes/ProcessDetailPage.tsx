@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import Icon from '../../components/ui/Icon'
 import { formatBRL } from '../../lib/money'
+import { formatProcessCode } from '../../lib/process-code'
 import { APP_ROUTES } from '../../lib/constants'
 import type { ProcessDetail, ProcessStatus } from '../../lib/api'
-import { getProcess, listProcessStatuses } from './processes.api'
+import { getProcess, listProcessStatuses, syncProcess } from './processes.api'
 import { statusVariant } from './status-variant'
 import ProcessFormModal from './ProcessFormModal'
 import ProcessStatusModal from './ProcessStatusModal'
@@ -19,8 +20,47 @@ function formatDate(value: string): string {
     : date.toLocaleDateString('pt-BR')
 }
 
+function formatDateTime(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('pt-BR')
+}
+
 function toNumber(value: string | null): number {
   return Number(value ?? 0)
+}
+
+// Junta os complementosTabelados num texto curto (ex.: "designada · instrução").
+function complementText(complements: unknown): string {
+  if (!Array.isArray(complements)) return ''
+  return complements
+    .map((c) =>
+      c && typeof c === 'object' && 'nome' in c
+        ? String((c as { nome: unknown }).nome ?? '')
+        : '',
+    )
+    .filter(Boolean)
+    .join(' · ')
+}
+
+// Linha de rodapé do movimento: órgão julgador + complementos.
+function movementDetail(m: ProcessDetail['movements'][number]): string {
+  return [m.court, complementText(m.complements)].filter(Boolean).join(' · ')
+}
+
+// Texto do estado da última consulta ao DataJud.
+function syncStateLabel(p: ProcessDetail): string {
+  switch (p.datajudSyncStatus) {
+    case 'SYNCED':
+      return p.datajudSyncedAt
+        ? `Sincronizado em ${formatDateTime(p.datajudSyncedAt)}.`
+        : 'Sincronizado.'
+    case 'NOT_FOUND':
+      return 'Não encontrado na base pública — pode estar em sigilo ou ainda não ter sido carregado.'
+    case 'ERROR':
+      return 'A última consulta falhou. Vamos tentar de novo automaticamente.'
+    default:
+      return 'Ainda não sincronizado com o DataJud.'
+  }
 }
 
 function ProcessDetailPage() {
@@ -36,6 +76,21 @@ function ProcessDetailPage() {
 
   const [editOpen, setEditOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
+
+  const MOVEMENTS_PAGE_SIZE = 10
+  const [movementsPage, setMovementsPage] = useState(1)
+
+  // Sincronização sob demanda: dispara (202) e faz polling do processo até o
+  // estado mudar, porque a consulta ao DataJud leva ~40s.
+  const [syncing, setSyncing] = useState(false)
+  const mountedRef = useRef(true)
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+      if (pollRef.current) clearTimeout(pollRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     listProcessStatuses()
@@ -71,6 +126,48 @@ function ProcessDetailPage() {
   }, [processId, reloadKey])
 
   const refresh = () => setReloadKey((k) => k + 1)
+
+  const handleSync = async () => {
+    if (!process || syncing) return
+    setSyncing(true)
+    // nextSyncAt muda em qualquer desfecho (SYNCED/NOT_FOUND/ERROR), então é o
+    // sinal mais confiável de que a consulta terminou.
+    const beforeNext = process.datajudNextSyncAt
+    const beforeStatus = process.datajudSyncStatus
+    const pid = process.id
+
+    try {
+      await syncProcess(pid)
+    } catch {
+      if (mountedRef.current) setSyncing(false)
+      return
+    }
+
+    const deadline = Date.now() + 90_000
+    const poll = () => {
+      pollRef.current = setTimeout(() => {
+        getProcess(pid)
+          .then((fresh) => {
+            if (!mountedRef.current) return
+            const done =
+              fresh.datajudNextSyncAt !== beforeNext ||
+              fresh.datajudSyncStatus !== beforeStatus
+            if (done || Date.now() > deadline) {
+              setProcess(fresh)
+              setSyncing(false)
+            } else {
+              poll()
+            }
+          })
+          .catch(() => {
+            if (!mountedRef.current) return
+            if (Date.now() > deadline) setSyncing(false)
+            else poll()
+          })
+      }, 4000)
+    }
+    poll()
+  }
 
   if (Number.isNaN(processId)) {
     return (
@@ -139,11 +236,16 @@ function ProcessDetailPage() {
 
       <div className="detail-head">
         <div className="detail-head-info">
-          <div className="detail-code">{process.code}</div>
+          <div className="detail-code">{formatProcessCode(process.code)}</div>
           <h1 className="detail-name">{process.name}</h1>
-          <Badge variant={statusVariant(process.status.description)}>
-            {process.status.description}
-          </Badge>
+          <div className="detail-badges">
+            <Badge variant={statusVariant(process.status.description)}>
+              {process.status.description}
+            </Badge>
+            {process.confidentiality === 'CONFIDENTIAL' && (
+              <Badge variant="warning">🔒 Sigiloso</Badge>
+            )}
+          </div>
         </div>
         <div className="detail-actions">
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
@@ -168,6 +270,12 @@ function ProcessDetailPage() {
               <dd>{process.subtype?.name ?? '—'}</dd>
               <dt>Responsável</dt>
               <dd>{process.responsible?.name ?? '—'}</dd>
+              <dt>Sigilo</dt>
+              <dd>
+                {process.confidentiality === 'CONFIDENTIAL'
+                  ? 'Sigiloso (segredo de justiça)'
+                  : 'Público'}
+              </dd>
               <dt>Aberto em</dt>
               <dd>{formatDate(process.createdAt)}</dd>
             </dl>
@@ -201,28 +309,169 @@ function ProcessDetailPage() {
           </section>
         </div>
 
-        <section className="ui-card detail-panel">
-          <h2 className="detail-panel-title">Histórico de status</h2>
-          {process.statusHistory.length === 0 ? (
-            <p className="ui-empty">Sem histórico ainda.</p>
-          ) : (
-            <ol className="timeline">
-              {process.statusHistory.map((h, index) => (
-                <li
-                  key={h.id}
-                  className={`tl-item${index === 0 ? ' current' : ''}`}
+        <div className="detail-side">
+          <section className="ui-card detail-panel">
+            <h2 className="detail-panel-title">Histórico de status</h2>
+            {process.statusHistory.length === 0 ? (
+              <p className="ui-empty">Sem histórico ainda.</p>
+            ) : (
+              <ol className="timeline">
+                {process.statusHistory.map((h, index) => (
+                  <li
+                    key={h.id}
+                    className={`tl-item${index === 0 ? ' current' : ''}`}
+                  >
+                    <span className="tl-date">{formatDate(h.changedAt)}</span>
+                    <span className="tl-status">{h.status.description}</span>
+                    <span className="tl-who">
+                      {h.user.name}
+                      {h.note ? ` · ${h.note}` : ''}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+
+          <section className="ui-card detail-panel">
+            <div className="detail-datajud-head">
+              <h2 className="detail-panel-title">Andamentos (DataJud)</h2>
+              {process.confidentiality !== 'CONFIDENTIAL' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSync}
+                  disabled={syncing}
                 >
-                  <span className="tl-date">{formatDate(h.changedAt)}</span>
-                  <span className="tl-status">{h.status.description}</span>
-                  <span className="tl-who">
-                    {h.user.name}
-                    {h.note ? ` · ${h.note}` : ''}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
+                  {syncing ? 'Atualizando…' : 'Atualizar agora'}
+                </Button>
+              )}
+            </div>
+
+            {process.confidentiality === 'CONFIDENTIAL' ? (
+              <p className="ui-empty">
+                Monitoramento automático desativado (processo sigiloso). O
+                acompanhamento é manual.
+              </p>
+            ) : (
+              <>
+                <p className="detail-datajud-state">
+                  {syncStateLabel(process)}
+                </p>
+
+                {process.datajudMetadata && (
+                  <dl className="detail-kv datajud-meta">
+                    {process.datajudMetadata.classe && (
+                      <>
+                        <dt>Classe</dt>
+                        <dd>{process.datajudMetadata.classe}</dd>
+                      </>
+                    )}
+                    {process.datajudMetadata.assuntos.length > 0 && (
+                      <>
+                        <dt>Assuntos</dt>
+                        <dd>{process.datajudMetadata.assuntos.join(', ')}</dd>
+                      </>
+                    )}
+                    {process.datajudMetadata.orgaoJulgador && (
+                      <>
+                        <dt>Órgão atual</dt>
+                        <dd>{process.datajudMetadata.orgaoJulgador}</dd>
+                      </>
+                    )}
+                    {process.datajudMetadata.ajuizadoEm && (
+                      <>
+                        <dt>Ajuizado em</dt>
+                        <dd>{formatDate(process.datajudMetadata.ajuizadoEm)}</dd>
+                      </>
+                    )}
+                    {process.datajudMetadata.tribunal && (
+                      <>
+                        <dt>Tribunal</dt>
+                        <dd>
+                          {process.datajudMetadata.tribunal}
+                          {process.datajudMetadata.grau
+                            ? ` · ${process.datajudMetadata.grau}`
+                            : ''}
+                        </dd>
+                      </>
+                    )}
+                  </dl>
+                )}
+
+                {process.movements.length === 0 ? (
+                  <p className="ui-empty">Nenhum andamento importado ainda.</p>
+                ) : (
+                  (() => {
+                    const total = process.movements.length
+                    const totalPages = Math.max(
+                      1,
+                      Math.ceil(total / MOVEMENTS_PAGE_SIZE),
+                    )
+                    const currentPage = Math.min(movementsPage, totalPages)
+                    const start = (currentPage - 1) * MOVEMENTS_PAGE_SIZE
+                    const pageItems = process.movements.slice(
+                      start,
+                      start + MOVEMENTS_PAGE_SIZE,
+                    )
+                    return (
+                      <>
+                        <ol className="timeline">
+                          {pageItems.map((m) => {
+                            const detail = movementDetail(m)
+                            return (
+                              <li key={m.id} className="tl-item">
+                                <span className="tl-date">
+                                  {formatDate(m.occurredAt)}
+                                </span>
+                                <span className="tl-status">{m.name}</span>
+                                {detail && (
+                                  <span className="tl-who">{detail}</span>
+                                )}
+                              </li>
+                            )
+                          })}
+                        </ol>
+                        {totalPages > 1 && (
+                          <nav
+                            className="detail-datajud-pagination"
+                            aria-label="Paginação de andamentos"
+                          >
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={currentPage <= 1}
+                              onClick={() =>
+                                setMovementsPage((p) => Math.max(1, p - 1))
+                              }
+                            >
+                              Anterior
+                            </Button>
+                            <span className="detail-datajud-page-info">
+                              Página {currentPage} de {totalPages}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={currentPage >= totalPages}
+                              onClick={() =>
+                                setMovementsPage((p) =>
+                                  Math.min(totalPages, p + 1),
+                                )
+                              }
+                            >
+                              Próxima
+                            </Button>
+                          </nav>
+                        )}
+                      </>
+                    )
+                  })()
+                )}
+              </>
+            )}
+          </section>
+        </div>
       </div>
 
       {editOpen && (

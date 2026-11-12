@@ -77,7 +77,11 @@ describe('Notificações (e2e)', () => {
         tokenRecipient = await login(company.id, recipientLogin);
 
         const client = await prisma.client.create({
-            data: { name: 'Cliente Notif', cpfCnpj: `11${suffix}`, companyId: company.id },
+            data: {
+                name: 'Cliente Notif',
+                cpfCnpj: `11${suffix}`,
+                companyId: company.id,
+            },
         });
         const statusNonFinal = await prisma.processStatus.findFirst({
             where: { isFinal: false },

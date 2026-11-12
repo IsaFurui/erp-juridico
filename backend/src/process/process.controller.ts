@@ -114,6 +114,26 @@ export class ProcessController {
         );
     }
 
+    @Post(':id/sync')
+    @UseGuards(RolesGuard)
+    @Roles(UserRole.ADMIN, UserRole.OPERACIONAL)
+    @HttpCode(HttpStatus.ACCEPTED)
+    @ApiOperation({
+        summary: 'Sincronizar andamentos com o DataJud (sob demanda)',
+    })
+    @ApiResponse({ status: 202, description: 'Sincronização disparada' })
+    @ApiResponse({ status: 404, description: 'Processo não encontrado' })
+    @ApiResponse({
+        status: 409,
+        description: 'Processo sigiloso não é monitorado',
+    })
+    sync(
+        @Param('id', ParseIntPipe) id: number,
+        @CurrentTenant() user: TenantJwtPayload,
+    ) {
+        return this.processService.requestSync(id, user.companyId);
+    }
+
     @Delete(':id')
     @UseGuards(RolesGuard)
     @Roles(UserRole.ADMIN)

@@ -7,7 +7,9 @@ import {
     IsOptional,
     IsNumber,
     Min,
+    IsEnum,
 } from 'class-validator';
+import { Confidentiality } from '../enums/confidentiality.enum';
 
 export class UpdateProcessDto {
     @ApiPropertyOptional({ example: 'Ação Trabalhista - João x Empresa X' })
@@ -66,4 +68,13 @@ export class UpdateProcessDto {
     @IsNumber({ maxDecimalPlaces: 2 })
     @Min(0)
     expectedAmount?: number;
+
+    @ApiPropertyOptional({
+        enum: Confidentiality,
+        description:
+            'Sigilo do processo. O advogado marca/desmarca na mão; não herda nada aqui.',
+    })
+    @IsOptional()
+    @IsEnum(Confidentiality)
+    confidentiality?: Confidentiality;
 }

@@ -72,7 +72,11 @@ describe('Configurações e catálogos (e2e)', () => {
         tokenAdmin = (
             await request(server)
                 .post('/auth/login')
-                .send({ companyId: company.id, login: adminLogin, password: PASSWORD })
+                .send({
+                    companyId: company.id,
+                    login: adminLogin,
+                    password: PASSWORD,
+                })
                 .expect(200)
         ).body.access_token;
 
@@ -154,11 +158,39 @@ describe('Configurações e catálogos (e2e)', () => {
             .get(`/process-type/${typeId}/subtypes`)
             .set('Authorization', `Bearer ${tokenAdmin}`)
             .expect(200);
-        expect(list.body.some((s: { name: string }) => s.name === 'Rito sumário')).toBe(true);
+        expect(
+            list.body.some((s: { name: string }) => s.name === 'Rito sumário'),
+        ).toBe(true);
 
         await request(server)
             .delete(`/process-type/${typeId}/subtypes/${subId}`)
             .set('Authorization', `Bearer ${tokenRoot}`)
             .expect(204);
+    });
+
+    it('a plataforma define e alterna o defaultConfidential do tipo', async () => {
+        const created = await request(server)
+            .post('/process-type')
+            .set('Authorization', `Bearer ${tokenRoot}`)
+            .send({ name: `Sigiloso ${suffix}`, defaultConfidential: true })
+            .expect(201);
+        const typeId = created.body.id as number;
+        createdTypes.push(typeId);
+        expect(created.body.defaultConfidential).toBe(true);
+
+        await request(server)
+            .patch(`/process-type/${typeId}`)
+            .set('Authorization', `Bearer ${tokenRoot}`)
+            .send({ defaultConfidential: false })
+            .expect(200);
+
+        const list = await request(server)
+            .get('/process-type')
+            .set('Authorization', `Bearer ${tokenAdmin}`)
+            .expect(200);
+        const row = (
+            list.body as { id: number; defaultConfidential: boolean }[]
+        ).find((t) => t.id === typeId);
+        expect(row?.defaultConfidential).toBe(false);
     });
 });

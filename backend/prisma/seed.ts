@@ -60,6 +60,12 @@ const PROCESS_TYPES = [
     'Consumidor',
 ];
 
+// Tipos cujo padrão é nascer sigiloso (segredo de justiça). É só o valor
+// INICIAL sugerido ao criar um processo — o root ajusta depois pela rota de
+// catálogo, e o advogado sempre pode corrigir processo a processo. Direito de
+// família costuma correr em segredo; o resto nasce público.
+const CONFIDENTIAL_BY_DEFAULT = new Set(['Família e Sucessões']);
+
 async function main() {
     for (const description of PROCESS_STATUSES) {
         const isFinal = FINAL_STATUSES.has(description);
@@ -72,10 +78,12 @@ async function main() {
     console.log(`${PROCESS_STATUSES.length} status cadastrados.`);
 
     for (const name of PROCESS_TYPES) {
+        // defaultConfidential só é semeado na criação. Em re-seed não sobrescreve
+        // (update vazio), para não desfazer um ajuste feito pelo root no catálogo.
         await prisma.processType.upsert({
             where: { name },
             update: {},
-            create: { name },
+            create: { name, defaultConfidential: CONFIDENTIAL_BY_DEFAULT.has(name) },
         });
     }
     console.log(`${PROCESS_TYPES.length} tipos de processo cadastrados.`);
